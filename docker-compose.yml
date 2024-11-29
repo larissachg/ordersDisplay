@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "3000:3000"  # Expone el puerto 3000
+    env_file:
+      - .env  # Carga las variables desde el archivo .env
+    volumes:
+      - .:/app  # Monta el código fuente para facilitar pruebas locales
+    container_name: nextjs-app-container  # Nombre del contenedor
