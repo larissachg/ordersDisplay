@@ -36,7 +36,7 @@ export const FormConfig = () => {
       },
     });
 
-    redirect("/")
+    redirect("/");
   };
 
   return (
