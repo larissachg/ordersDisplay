@@ -14,11 +14,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`antialiased`}
-      >
+      <body className={`antialiased`}>
         {children}
-        <Toaster/>
+        <Toaster
+          theme="light"
+          toastOptions={{
+            actionButtonStyle: { backgroundColor: "#fff", color: "black" },
+          }}
+        />
       </body>
     </html>
   );
