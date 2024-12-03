@@ -1,8 +1,14 @@
 import { OrdenDb } from "@/interfaces/Orden";
 import { poolPromise } from "./db";
+import moment from "moment-timezone";
 
 export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
   try {
+    const startOfToday = moment
+      .tz("America/La_Paz")
+      .startOf("day")
+      .format("YYYY-MM-DD HH:mm:ss");
+
     const pool = await poolPromise;
     const result = await pool.request().query(`
      SELECT  Visitas.Id as id, Mesas.Nombre as mesa, Meseros.Nombre as mesero, TipoEnvios.Nombre as tipoEnvio,ParaLlevar.Nombre as paraLlevar, 
@@ -20,14 +26,14 @@ LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID)
 LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID)   
 INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID) 
 INNER JOIN Impresoras ON (TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  and NombreFisico LIKE '%${nombreEquipo}%' ) 
-where DetalleCuenta.Hora > '20241114 00:00:00'  and Terminado is null and
+where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is null and
 DetalleCuenta.VisitaID in (
 SELECT top 9 DetalleCuenta.VisitaID
 FROM  ((DetalleCuenta 
 INNER JOIN  Productos ON Productos.ID = DetalleCuenta.ProductoID)  
 INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID) 
 INNER JOIN Impresoras ON (TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  and NombreFisico LIKE '%${nombreEquipo}%' ) 
-where DetalleCuenta.Hora > '20241114 00:00:00'  and Terminado is null
+where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is null
 group by DetalleCuenta.VisitaID,DetalleCuenta.Orden
 order by DetalleCuenta.Orden, DetalleCuenta.VisitaID
 )

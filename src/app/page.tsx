@@ -1,4 +1,4 @@
-import { OrdersPage } from "@/components/orders";
+import { OrdersPage } from '../components/Orders';
 
 export default function Home() {
   return <OrdersPage />;

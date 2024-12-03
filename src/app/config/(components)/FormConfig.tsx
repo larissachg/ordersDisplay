@@ -74,7 +74,7 @@ export const FormConfig = () => {
   return (
     <div className="w-full h-[100vh] flex justify-center items-center">
       <form>
-        <Card className="w-[450px] pt-3 p-4 flex flex-col gap-2">
+        <Card className="min-w-[200px] sm:w-[450px] pt-3 p-4 flex flex-col gap-2">
           <CardHeader>
             <CardTitle>Registro de Equipo</CardTitle>
           </CardHeader>

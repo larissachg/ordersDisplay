@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCheck, Timer } from "lucide-react";
+import Masonry from "react-masonry-css";
+import { CheckCheck } from "lucide-react";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
@@ -8,17 +9,20 @@ import { redirect } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Orden } from "@/interfaces/Orden";
 import TimerComponent from "./TimerComponent";
-import { isDesktop, isMobileOnly, isTablet } from "react-device-detect";
+import useSound from "use-sound";
 
 const themeColors = {
-  primary: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
-  secondary: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
-  timer: process.env.NEXT_PUBLIC_TIMER_COLOR,
+  primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
+  secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
+  done: process.env.NEXT_PUBLIC_DONE_COLOR,
 };
+
 export const OrdersPage = () => {
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [loading, setLoading] = useState(true);
   const [nombreEquipo, setNombreEquipo] = useState("");
+  const [playDone] = useSound("/sounds/success.mp3");
+  const [playNewOrder] = useSound("/sounds/neworder.mp3");
 
   const getOrdenes = useCallback(async () => {
     try {
@@ -33,11 +37,15 @@ export const OrdersPage = () => {
       }
       const data = await resp.json();
 
+      if (data.length > ordenes.length) {
+        playNewOrder();
+      }
+
       setOrdenes(data);
     } catch (error) {
       console.error(error);
     }
-  }, [nombreEquipo]);
+  }, [nombreEquipo, ordenes.length, playNewOrder]);
 
   useEffect(() => {
     const equipo = localStorage.getItem("equipo") ?? "";
@@ -61,9 +69,14 @@ export const OrdersPage = () => {
 
     getOrdenes();
     setLoading(false);
-  }, [getOrdenes]);
 
-  console.log({ isMobileOnly });
+    const interval = setInterval(() => {
+      console.log("Actualizando órdenes...");
+      getOrdenes();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [getOrdenes]);
 
   const actualizarOrden = async (
     idVisita: number,
@@ -112,106 +125,124 @@ export const OrdersPage = () => {
     );
   }
 
+  const breakpointColumns = {
+    default: 3,
+    1100: 2,
+    700: 1,
+  };
+
   return (
-    <div
-      className={`mt-2 mx-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 lg:grid-rows-4 gap-5 md:gap-2 h-[98vh]`}
-    >
-      {ordenes.map((orden, ordenIndex) => (
-        <Card
-          key={`${orden.id}${orden.orden}`}
-          className={`flex flex-col relative ${
-            (isMobileOnly || isTablet) && ordenIndex < 4 ? "row-span-2" : ""
-          }
-          ${isDesktop && ordenIndex < 3 && "row-span-2"}
-          `}
+    <>
+      {ordenes.length === 0 ? (
+        <div className="flex items-center justify-center h-[90vh]">
+          <h2 className="text-xl sm:text-4xl lg:text-7xl font-bold text-gray-500">
+            No hay pedidos pendientes.
+          </h2>
+        </div>
+      ) : (
+        <Masonry
+          breakpointCols={breakpointColumns}
+          className="flex w-auto gap-3 mt-1 px-1 break-inside-avoid"
+          columnClassName="masonry-column"
         >
-          <CardHeader>
-            <div className="flex justify-between border-b-[1px] pb-3 items-center">
-              <div className="flex gap-2">
+          {ordenes.map((orden, index) => (
+            <Card
+              key={`${orden.id}${orden.orden}`}
+              className="relative mb-3 break-inside-avoid overflow-hidden shadow-xl"
+              style={{ borderColor: `#${themeColors.primaryBg}` }}
+            >
+              <CardHeader>
                 <div
-                  className="w-[4.5rem] p-1 rounded-xl text-center m-auto"
-                  style={{ backgroundColor: `#${themeColors.primary}` }}
+                  className="flex justify-between border-b-[1px] p-2 items-center"
+                  style={{
+                    backgroundColor:
+                      index < 3
+                        ? `#${themeColors.primaryBg}`
+                        : `#${themeColors.secondaryBg}`,
+                  }}
                 >
-                  <p className="text-xl font-bold text-white">#{orden.orden}</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold uppercase">
-                    {orden.mesa
-                      ? orden.mesa
-                      : orden.tipoEnvio + " - " + orden.paraLlevar}
-                  </p>
-                  <p className="text-md uppercase font-semibold">
-                    {orden.mesero} |{" "}
-                    <span>{orden.hora.split("T")[1].split(".")[0]}</span>
-                  </p>
-                </div>
-              </div>
+                  <div className="flex gap-2">
+                    <div className="p-2 rounded-full text-center m-auto border border-white shadow-md">
+                      <p
+                        className={`text-2xl font-bold ${
+                          index < 3 ? "text-white" : "text-black"
+                        } `}
+                      >
+                        #{orden.orden}
+                      </p>
+                    </div>
+                    <div>
+                      <p
+                        className={`text-2xl font-bold uppercase ${
+                          index < 3 ? "text-white" : "text-black"
+                        }`}
+                      >
+                        {orden.mesa
+                          ? orden.mesa
+                          : orden.tipoEnvio + " - " + orden.paraLlevar}
+                      </p>
+                      <p
+                        className={`text-lg uppercase font-semibold ${
+                          index < 3 ? "text-white" : "text-black"
+                        }`}
+                      >
+                        {orden.mesero} |{" "}
+                        <span>{orden.hora.split("T")[1].split(".")[0]}</span>
+                      </p>
+                    </div>
+                  </div>
 
-              <div
-                className="px-2 rounded-xl flex items-center gap-1 font-bold  min-h-11 max-h-12"
-                style={{ backgroundColor: `#${themeColors.timer}` }}
-              >
-                <Timer width={20} height={20} />
-                <TimerComponent startTime={orden.hora.replace("Z", "")} />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-auto scroll-card min-h-20">
-            {orden.productos.map((producto, index) => (
-              <div
-                key={`${producto.producto}${orden.orden}${index} `}
-                className={`px-2 flex flex-col capitalize ${
-                  producto.borrada
-                    ? "line-through text-red-500 animate-pulse"
-                    : ""
-                }`}
-              >
-                <h2
-                  className={`font-bold ${
-                    !isMobileOnly && ordenIndex < 3 ? "text-2xl" : "text-xl"
-                  } `}
-                >
-                  {producto.cantidad}x {producto.producto}
-                </h2>
-
-                {producto.combos.map((combo, index) => (
-                  <ul
-                    className={`font-semibold pl-5 ${
-                      !isMobileOnly && ordenIndex < 3 ? "text-xl" : "text-lg"
+                  <TimerComponent startTime={orden.hora.replace("Z", "")} />
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 min-h-20">
+                {orden.productos.map((producto, index) => (
+                  <div
+                    key={`${producto.producto}${orden.orden}${index} `}
+                    className={`py-1 px-2 flex flex-col capitalize ${
+                      producto.borrada
+                        ? "line-through text-[#d17f7f] animate-pulse"
+                        : ""
                     }`}
-                    key={index}
                   >
-                    <li>
-                      +{combo.cantidad} {combo.descripcion}
-                    </li>
-                  </ul>
+                    <h2 className="font-bold text-3xl leading-8">
+                      {producto.cantidad}x {producto.producto}
+                    </h2>
+
+                    {producto.combos.map((combo, index) => (
+                      <ul
+                        className="font-semibold pl-5 text-2xl leading-6"
+                        key={index}
+                      >
+                        <li>
+                          +{combo.cantidad} {combo.descripcion}
+                        </li>
+                      </ul>
+                    ))}
+
+                    {producto.observacion && (
+                      <p className="font-semibold pl-5 text-2xl leading-6">
+                        - {producto.observacion}
+                      </p>
+                    )}
+                  </div>
                 ))}
-
-                {producto.observacion && (
-                  <p
-                    className={`font-semibold pl-5 ${
-                      !isMobileOnly && ordenIndex < 3 ? "text-xl" : "text-lg"
-                    }`}
-                  >
-                    - {producto.observacion}
-                  </p>
-                )}
-              </div>
-            ))}
-          </CardContent>
-          <Button
-            className="self-end absolute bottom-2 right-4 rounded-full w-[55px] h-[55px] text-[20px]"
-            style={{ backgroundColor: `#${themeColors.secondary}` }}
-            variant="outline"
-            onClick={() => actualizarOrden(orden.id, orden.orden, true)}
-          >
-            <CheckCheck
-              style={{ color: `#${themeColors.primary}` }}
-              className="!w-[25px] !h-[25px]"
-            />
-          </Button>
-        </Card>
-      ))}
-    </div>
+              </CardContent>
+              <Button
+                className="absolute bottom-2 right-4 rounded-full w-[55px] h-[55px] text-[20px] shadow-lg"
+                style={{ backgroundColor: `#${themeColors.done}` }}
+                variant="outline"
+                onClick={() => {
+                  playDone();
+                  actualizarOrden(orden.id, orden.orden, true);
+                }}
+              >
+                <CheckCheck className="!w-[25px] !h-[25px] text-[#fff" />
+              </Button>
+            </Card>
+          ))}
+        </Masonry>
+      )}
+    </>
   );
 };

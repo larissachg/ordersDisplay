@@ -127,28 +127,3 @@
     transform: scale(1);
   }
 }
-
-
-
-.scroll-card {
-  overflow-y: auto;
-  max-height: 100%; /* Evita que el contenido salga del contenedor */
-}
-
-.dynamic-card {
-  min-height: 10rem; /* Altura mínima */
-  max-height: calc(100vh / 3); /* Divide dinámicamente la altura según la pantalla */
-  overflow: hidden; /* Oculta cualquier desbordamiento */
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.dynamic-content {
-  font-size: clamp(0.8rem, 1.2vw, 1rem); /* Tamaño dinámico de fuente */
-}
-
-.large-content {
-  font-size: clamp(0.8rem, 1.5vw, 1rem); /* Ajusta según el contenido */
-  overflow-y: auto; /* Habilita el scroll si es necesario */
-}
