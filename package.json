@@ -25,6 +25,7 @@
     "react-device-detect": "^2.2.3",
     "react-dom": "^18",
     "react-masonry-css": "^1.0.16",
+    "readline-sync": "^1.4.10",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",

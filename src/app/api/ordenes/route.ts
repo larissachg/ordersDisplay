@@ -19,7 +19,7 @@ export async function GET(req: Request) {
         )
       ) {
         const productosFiltrados = ordenesDb.filter(
-          (orden) => orden.id === ordenDb.id
+          (orden) => orden.id === ordenDb.id && orden.orden === ordenDb.orden
         );
         const productos: Producto[] = productosFiltrados.map((producto) => {
           const combosExtraidos: string[] | undefined =
