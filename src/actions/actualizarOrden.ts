@@ -19,7 +19,7 @@ export async function actualizarOrden({
     const fechaTerminado = terminado
       ? moment().tz("America/La_Paz").format("YYYY-MM-DD HH:mm:ss")
       : null;
-      
+
     // Realiza la consulta de actualización
     const result = await pool
       .request()

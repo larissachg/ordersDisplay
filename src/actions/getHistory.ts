@@ -2,7 +2,7 @@ import { OrdenDb } from "@/interfaces/Orden";
 import { poolPromise } from "./db";
 import moment from "moment-timezone";
 
-export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
+export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
   try {
     const startOfToday = moment
       .tz("America/La_Paz")
@@ -26,18 +26,17 @@ LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID)
 LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID)   
 INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID) 
 INNER JOIN Impresoras ON (TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  and NombreFisico LIKE '%${nombreEquipo}%' ) 
-where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is null and
+where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is not null and
 DetalleCuenta.VisitaID in (
-SELECT top 9 DetalleCuenta.VisitaID
+SELECT DetalleCuenta.VisitaID
 FROM  ((DetalleCuenta 
 INNER JOIN  Productos ON Productos.ID = DetalleCuenta.ProductoID)  
 INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID) 
 INNER JOIN Impresoras ON (TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  and NombreFisico LIKE '%${nombreEquipo}%' ) 
-where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is null
+where DetalleCuenta.Hora > '${startOfToday}'  and Terminado is not null
 group by DetalleCuenta.VisitaID,DetalleCuenta.Orden
-order by DetalleCuenta.Orden, DetalleCuenta.VisitaID
 )
-order by DetalleCuenta.Orden, Visitas.Id, DetalleCuenta.Hora, Productos.Nombre
+order by DetalleCuenta.Terminado desc
     `);
 
     return result.recordset as OrdenDb[];

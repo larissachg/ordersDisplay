@@ -1,8 +1,7 @@
-import { Equipo } from '@/interfaces/Equipo';
-import { poolPromise } from './db';
+import { Equipo } from "@/interfaces/Equipo";
+import { poolPromise } from "./db";
 
 // Define el tipo de datos que regresará la consulta
-
 
 export async function getEquiposDb(): Promise<Equipo[]> {
   try {
@@ -13,7 +12,7 @@ export async function getEquiposDb(): Promise<Equipo[]> {
 
     return result.recordset as Equipo[];
   } catch (error) {
-    console.error('Error al obtener las órdenes:', error);
-    throw new Error('No se pudieron obtener las órdenes');
+    console.error("Error al obtener las órdenes:", error);
+    throw new Error("No se pudieron obtener las órdenes");
   }
 }

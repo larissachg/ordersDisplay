@@ -1,28 +1,30 @@
-import type { Metadata } from 'next'
-import './globals.css'
-import { Toaster } from '@/components/ui/sonner'
+import type { Metadata } from "next";
+import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
+import { SideMenu } from "@/components/SideMenu";
 
 export const metadata: Metadata = {
-  title: 'Restotech KDS',
-  description: 'App para pedidos de restotech'
-}
+  title: "Restotech KDS",
+  description: "App para pedidos de restotech",
+};
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
+    <html lang="en">
       <body className={`antialiased`}>
         {children}
+        <SideMenu />
         <Toaster
-          theme='light'
+          theme="light"
           toastOptions={{
-            actionButtonStyle: { backgroundColor: '#fff', color: 'black' }
+            actionButtonStyle: { backgroundColor: "#fff", color: "black" },
           }}
         />
       </body>
     </html>
-  )
+  );
 }
