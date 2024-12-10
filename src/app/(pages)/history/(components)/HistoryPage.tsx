@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import {
   AlertDialog,
@@ -9,69 +9,75 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Orden } from "@/interfaces/Orden";
-import { Search, Undo } from "lucide-react";
-import { redirect, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Orden } from '@/interfaces/Orden'
+import { Search, Undo } from 'lucide-react'
+import { redirect, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 
 export const HistoryPage = () => {
-  const [ordenes, setOrdenes] = useState<Orden[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [nombreEquipo, setNombreEquipo] = useState("");
-  const [filteredOrdenes, setFilteredOrdenes] = useState<Orden[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [ordenes, setOrdenes] = useState<Orden[]>([])
+  const [loading, setLoading] = useState(true)
+  const [nombreEquipo, setNombreEquipo] = useState('')
+  const [filteredOrdenes, setFilteredOrdenes] = useState<Orden[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const router = useRouter();
+  const router = useRouter()
+
+  const themeColors = {
+    primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
+    secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
+    done: process.env.NEXT_PUBLIC_DONE_COLOR
+  }
 
   const getHistory = useCallback(async () => {
     try {
       const resp = await fetch(
         `/api/history?equipo=${encodeURIComponent(nombreEquipo)}`,
         {
-          method: "GET",
+          method: 'GET'
         }
-      );
+      )
       if (!resp.ok) {
-        throw new Error("Error al obtener los equipos");
+        throw new Error('Error al obtener los equipos')
       }
-      const data = await resp.json();
+      const data = await resp.json()
 
-      setOrdenes(data);
-      setFilteredOrdenes(data); //
+      setOrdenes(data)
+      setFilteredOrdenes(data) //
     } catch (error) {
-      console.error(error);
+      console.error(error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [nombreEquipo]);
+  }, [nombreEquipo])
 
   useEffect(() => {
-    const equipo = localStorage.getItem("equipo") ?? "";
+    const equipo = localStorage.getItem('equipo') ?? ''
 
     if (equipo.length === 0) {
-      redirect("/config");
+      redirect('/config')
     }
 
-    setNombreEquipo(equipo);
+    setNombreEquipo(equipo)
 
-    getHistory();
+    getHistory()
 
     const interval = setInterval(() => {
-      console.log("Actualizando órdenes...");
-      getHistory();
-    }, 15000);
+      console.log('Actualizando órdenes...')
+      getHistory()
+    }, 15000)
 
-    return () => clearInterval(interval);
-  }, [getHistory]);
+    return () => clearInterval(interval)
+  }, [getHistory])
 
   // Manejar cambios en el buscador
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const term = event.target.value.toLowerCase();
-    setSearchTerm(term);
+    const term = event.target.value.toLowerCase()
+    setSearchTerm(term)
 
     // Filtrar órdenes por término de búsqueda
     const filtered = ordenes.filter(
@@ -82,10 +88,10 @@ export const HistoryPage = () => {
         orden.productos.some((producto) =>
           producto.producto.toLowerCase().includes(term)
         )
-    );
+    )
 
-    setFilteredOrdenes(filtered);
-  };
+    setFilteredOrdenes(filtered)
+  }
 
   const rehacerOrden = async (
     idVisita: number,
@@ -94,18 +100,18 @@ export const HistoryPage = () => {
   ) => {
     try {
       const resp = await fetch(`/api/ordenes`, {
-        method: "PUT",
-        body: JSON.stringify({ idVisita, idOrden, terminado }),
-      });
+        method: 'PUT',
+        body: JSON.stringify({ idVisita, idOrden, terminado })
+      })
       if (!resp.ok) {
-        throw new Error("Error al actualizar la orden");
+        throw new Error('Error al actualizar la orden')
       }
 
-      router.push("/");
+      router.push('/')
     } catch (error) {
-      console.error(error);
+      console.error(error)
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -116,7 +122,7 @@ export const HistoryPage = () => {
           <div className="bounce3"></div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -129,8 +135,8 @@ export const HistoryPage = () => {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center overflow-hidden mb-3">
-          <h2 className="text-2xl sm:text-3xl font-bold capitalize my-5 sm:mb-8">
-            Historial de pedidos
+          <h2 className="text-2xl sm:text-3xl font-bold my-5 sm:mb-8">
+            Historial de Pedidos
           </h2>
 
           <div className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[50vw] mb-4 flex items-center gap-2 border rounded-lg px-4 shadow-sm">
@@ -147,8 +153,9 @@ export const HistoryPage = () => {
           <div className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[50vw] flex flex-col gap-2">
             {filteredOrdenes.map((orden) => (
               <Card
-                className="py-1 px-2 overflow-hidden relative"
                 key={`${orden.id}${orden.orden}`}
+                className="py-1 px-2 overflow-hidden relative shadow-xl"
+                style={{ borderColor: `#${themeColors.primaryBg}` }}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between font-bold text-xl uppercase pb-1 gap-1 sm:gap-3">
@@ -158,11 +165,12 @@ export const HistoryPage = () => {
                     <p>
                       {orden.mesa
                         ? orden.mesa
-                        : orden.tipoEnvio + " - " + orden.paraLlevar}
+                        : orden.tipoEnvio + ' - ' + orden.paraLlevar}
                     </p>
 
                     <p>{orden.mesero}</p>
-                    <span>{orden.terminado?.split("T")[1].split(".")[0]}</span>
+
+                    <p>{orden.hora.substring(11, 16)}</p>
                   </div>
                 </CardHeader>
                 <CardContent className="mt-2 min-h-10">
@@ -171,8 +179,8 @@ export const HistoryPage = () => {
                       key={`${producto.producto}${orden.orden}`}
                       className={`capitalize font-bold text-lg leading-5 ${
                         producto.borrada
-                          ? "line-through text-[#d17f7f] animate-pulse"
-                          : ""
+                          ? 'line-through text-[#d17f7f] animate-pulse'
+                          : ''
                       }`}
                     >
                       <h2>
@@ -188,7 +196,7 @@ export const HistoryPage = () => {
                       ))}
                       {producto.observacion && (
                         <p className="text-base font-semibold">
-                          {" "}
+                          {' '}
                           - {producto.observacion}
                         </p>
                       )}
@@ -202,7 +210,7 @@ export const HistoryPage = () => {
                       className="absolute bottom-2 right-4 rounded-full w-[40px] h-[40px] shadow-lg"
                       variant="outline"
                       style={{
-                        backgroundColor: "#d17f7f",
+                        backgroundColor: '#d17f7f'
                       }}
                     >
                       <Undo className="text-white !w-[25px] !h-[25px]" />
@@ -223,7 +231,7 @@ export const HistoryPage = () => {
                           rehacerOrden(orden.id, orden.orden, false)
                         }
                         style={{
-                          backgroundColor: "#d17f7f",
+                          backgroundColor: '#d17f7f'
                         }}
                       >
                         Confirmar
@@ -237,5 +245,5 @@ export const HistoryPage = () => {
         </div>
       )}
     </>
-  );
-};
+  )
+}

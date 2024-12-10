@@ -1,72 +1,72 @@
-"use client";
+'use client'
 
-import Masonry from "react-masonry-css";
-import { CheckCheck } from "lucide-react";
-import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
-import { Button } from "../../../../components/ui/button";
-import { toast } from "sonner";
-import { redirect } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Orden } from "@/interfaces/Orden";
-import TimerComponent from "../../../../components/TimerComponent";
-import useSound from "use-sound";
+import Masonry from 'react-masonry-css'
+import { CheckCheck } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '../../../../components/ui/card'
+import { Button } from '../../../../components/ui/button'
+import { toast } from 'sonner'
+import { redirect } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { Orden } from '@/interfaces/Orden'
+import TimerComponent from '../../../../components/TimerComponent'
+import useSound from 'use-sound'
 
 const themeColors = {
   primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
   secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
-  done: process.env.NEXT_PUBLIC_DONE_COLOR,
-};
+  done: process.env.NEXT_PUBLIC_DONE_COLOR
+}
 
 export const OrdersPage = () => {
-  const [ordenes, setOrdenes] = useState<Orden[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [nombreEquipo, setNombreEquipo] = useState("");
-  const [playDone] = useSound("/sounds/success.mp3");
-  const [playNewOrder] = useSound("/sounds/neworder.mp3");
+  const [ordenes, setOrdenes] = useState<Orden[]>([])
+  const [loading, setLoading] = useState(true)
+  const [nombreEquipo, setNombreEquipo] = useState('')
+  const [playDone] = useSound('/sounds/success.mp3')
+  const [playNewOrder] = useSound('/sounds/neworder.mp3')
 
   const getOrdenes = useCallback(async () => {
     try {
       const resp = await fetch(
         `/api/ordenes?equipo=${encodeURIComponent(nombreEquipo)}`,
         {
-          method: "GET",
+          method: 'GET'
         }
-      );
+      )
       if (!resp.ok) {
-        throw new Error("Error al obtener los equipos");
+        throw new Error('Error al obtener los equipos')
       }
-      const data = await resp.json();
+      const data = await resp.json()
 
       if (data.length > ordenes.length) {
-        playNewOrder();
+        playNewOrder()
       }
 
-      setOrdenes(data);
+      setOrdenes(data)
     } catch (error) {
-      console.error(error);
+      console.error(error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [nombreEquipo, ordenes.length, playNewOrder]);
+  }, [nombreEquipo, ordenes.length, playNewOrder])
 
   useEffect(() => {
-    const equipo = localStorage.getItem("equipo") ?? "";
+    const equipo = localStorage.getItem('equipo') ?? ''
 
     if (equipo.length === 0) {
-      redirect("/config");
+      redirect('/config')
     }
 
-    setNombreEquipo(equipo);
+    setNombreEquipo(equipo)
 
-    getOrdenes();
+    getOrdenes()
 
     const interval = setInterval(() => {
-      console.log("Actualizando órdenes...");
-      getOrdenes();
-    }, 15000);
+      console.log('Actualizando órdenes...')
+      getOrdenes()
+    }, 15000)
 
-    return () => clearInterval(interval);
-  }, [getOrdenes]);
+    return () => clearInterval(interval)
+  }, [getOrdenes])
 
   const actualizarOrden = async (
     idVisita: number,
@@ -75,33 +75,33 @@ export const OrdersPage = () => {
   ) => {
     try {
       const resp = await fetch(`/api/ordenes`, {
-        method: "PUT",
-        body: JSON.stringify({ idVisita, idOrden, terminado }),
-      });
+        method: 'PUT',
+        body: JSON.stringify({ idVisita, idOrden, terminado })
+      })
       if (!resp.ok) {
-        throw new Error("Error al actualizar la orden");
+        throw new Error('Error al actualizar la orden')
       }
 
       if (terminado) {
-        toast.success("Pedido entregado exitosamente!", {
+        toast.success('Pedido entregado exitosamente!', {
           action: {
             actionButtonStyle: {
               backgroundColor: `blue`,
-              color: "black",
+              color: 'black'
             },
-            label: "Deshacer",
-            onClick: () => actualizarOrden(idVisita, idOrden, false),
+            label: 'Deshacer',
+            onClick: () => actualizarOrden(idVisita, idOrden, false)
           },
           richColors: true,
-          position: "bottom-center",
-        });
+          position: 'bottom-center'
+        })
       }
 
-      await getOrdenes();
+      await getOrdenes()
     } catch (error) {
-      console.error(error);
+      console.error(error)
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -112,14 +112,14 @@ export const OrdersPage = () => {
           <div className="bounce3"></div>
         </div>
       </div>
-    );
+    )
   }
 
   const breakpointColumns = {
     default: 3,
     1100: 2,
-    700: 1,
-  };
+    700: 1
+  }
 
   return (
     <>
@@ -138,7 +138,7 @@ export const OrdersPage = () => {
           {ordenes.map((orden, index) => (
             <Card
               key={`${orden.id}${orden.orden}`}
-              className="relative mb-3 break-inside-avoid overflow-hidden shadow-xl"
+              className="relative mb-3 break-inside-avoid overflow-hidden shadow-xl sm:min-h-[30vh]"
               style={{ borderColor: `#${themeColors.primaryBg}` }}
             >
               <CardHeader>
@@ -148,7 +148,7 @@ export const OrdersPage = () => {
                     backgroundColor:
                       index < 3
                         ? `#${themeColors.primaryBg}`
-                        : `#${themeColors.secondaryBg}`,
+                        : `#${themeColors.secondaryBg}`
                   }}
                 >
                   <div className="flex gap-2">
@@ -160,16 +160,16 @@ export const OrdersPage = () => {
                     <div>
                       <p
                         className={`text-2xl font-bold uppercase ${
-                          index < 3 ? "text-white" : "text-black"
+                          index < 3 ? 'text-white' : 'text-black'
                         }`}
                       >
                         {orden.mesa
                           ? orden.mesa
-                          : orden.tipoEnvio + " - " + orden.paraLlevar}
+                          : orden.tipoEnvio + ' - ' + orden.paraLlevar}
                       </p>
                       <p
                         className={`text-lg uppercase font-semibold ${
-                          index < 3 ? "text-white" : "text-black"
+                          index < 3 ? 'text-white' : 'text-black'
                         }`}
                       >
                         {orden.mesero}
@@ -177,7 +177,7 @@ export const OrdersPage = () => {
                     </div>
                   </div>
 
-                  <TimerComponent startTime={orden.hora.replace("Z", "")} />
+                  <TimerComponent startTime={orden.hora.replace('Z', '')} />
                 </div>
               </CardHeader>
               <CardContent className="flex-1 min-h-20">
@@ -186,8 +186,8 @@ export const OrdersPage = () => {
                     key={`${producto.producto}${orden.orden}${index} `}
                     className={`py-1 px-2 flex flex-col capitalize ${
                       producto.borrada
-                        ? "line-through text-[#d17f7f] animate-pulse"
-                        : ""
+                        ? 'line-through text-[#d17f7f] animate-pulse'
+                        : ''
                     }`}
                   >
                     <h2 className="font-bold text-3xl leading-8">
@@ -218,8 +218,8 @@ export const OrdersPage = () => {
                 style={{ backgroundColor: `#${themeColors.done}` }}
                 variant="outline"
                 onClick={() => {
-                  playDone();
-                  actualizarOrden(orden.id, orden.orden, true);
+                  playDone()
+                  actualizarOrden(orden.id, orden.orden, true)
                 }}
               >
                 <CheckCheck className="!w-[25px] !h-[25px] text-[#fff" />
@@ -229,5 +229,5 @@ export const OrdersPage = () => {
         </Masonry>
       )}
     </>
-  );
-};
+  )
+}
