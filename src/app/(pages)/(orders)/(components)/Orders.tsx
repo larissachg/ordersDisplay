@@ -21,6 +21,7 @@ export const OrdersPage = () => {
   const [ordenes, setOrdenes] = useState<Orden[]>([])
   const [loading, setLoading] = useState(true)
   const [nombreEquipo, setNombreEquipo] = useState('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [playDone] = useSound('/sounds/success.mp3')
   const [playNewOrder] = useSound('/sounds/neworder.mp3')
 
@@ -44,6 +45,7 @@ export const OrdersPage = () => {
       setOrdenes(data)
     } catch (error) {
       console.error(error)
+      setErrorMessage('No se pudo conectar a la base de datos')
     } finally {
       setLoading(false)
     }
@@ -80,7 +82,8 @@ export const OrdersPage = () => {
         body: JSON.stringify({ idVisita, idOrden, terminado, nombreEquipo })
       })
       if (!resp.ok) {
-        throw new Error('Error al actualizar la orden')
+        setErrorMessage('Error al actualizar la orden, recarge la pantalla')
+        return
       }
 
       if (terminado) {
@@ -107,12 +110,22 @@ export const OrdersPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[90vh]">
-        <div className="spinner">
-          <div className="bounce1"></div>
-          <div className="bounce2"></div>
-          <div className="bounce3"></div>
+      <div className='flex items-center justify-center h-[90vh]'>
+        <div className='spinner'>
+          <div className='bounce1'></div>
+          <div className='bounce2'></div>
+          <div className='bounce3'></div>
         </div>
+      </div>
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <div className='flex items-center justify-center h-[90vh]'>
+        <h2 className='text-xl sm:text-4xl lg:text-7xl font-bold text-red-500 animate-pulse'>
+          {errorMessage}
+        </h2>
       </div>
     )
   }
@@ -126,26 +139,26 @@ export const OrdersPage = () => {
   return (
     <>
       {ordenes.length === 0 ? (
-        <div className="flex items-center justify-center h-[90vh]">
-          <h2 className="text-xl sm:text-4xl lg:text-7xl font-bold text-gray-500">
+        <div className='flex items-center justify-center h-[90vh]'>
+          <h2 className='text-xl sm:text-4xl lg:text-7xl font-bold text-gray-500'>
             No hay pedidos pendientes.
           </h2>
         </div>
       ) : (
         <Masonry
           breakpointCols={breakpointColumns}
-          className="flex w-auto gap-3 mt-1 px-1 break-inside-avoid"
-          columnClassName="masonry-column"
+          className='flex w-auto gap-3 mt-1 px-1 break-inside-avoid'
+          columnClassName='masonry-column'
         >
           {ordenes.map((orden, index) => (
             <Card
               key={`${orden.id}${orden.orden}`}
-              className="relative mb-3 break-inside-avoid overflow-hidden shadow-xl sm:min-h-[30vh]"
+              className='relative mb-3 break-inside-avoid overflow-hidden shadow-xl sm:min-h-[30vh]'
               style={{ borderColor: `#${themeColors.primaryBg}` }}
             >
               <CardHeader>
                 <div
-                  className="flex justify-between border-b-[1px] p-2 items-center"
+                  className='flex justify-between border-b-[1px] p-2 items-center'
                   style={{
                     backgroundColor:
                       index < 3
@@ -153,8 +166,8 @@ export const OrdersPage = () => {
                         : `#${themeColors.secondaryBg}`
                   }}
                 >
-                  <div className="flex gap-2">
-                    <div className=" bg-[#2c3236] rounded-full text-center m-auto border border-white shadow-md min-w-16 min-h-16 flex items-center justify-center px-2">
+                  <div className='flex gap-2'>
+                    <div className=' bg-[#2c3236] rounded-full text-center m-auto border border-white shadow-md min-w-16 min-h-16 flex items-center justify-center px-2'>
                       <span className={`text-[2rem] font-bold text-white`}>
                         {orden.orden}
                       </span>
@@ -182,7 +195,7 @@ export const OrdersPage = () => {
                   <TimerComponent startTime={orden.hora.replace('Z', '')} />
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 min-h-20">
+              <CardContent className='flex-1 min-h-20'>
                 {orden.productos.map((producto, index) => (
                   <div
                     key={`${producto.producto}${orden.orden}${index} `}
@@ -192,13 +205,13 @@ export const OrdersPage = () => {
                         : ''
                     }`}
                   >
-                    <h2 className="font-bold text-3xl leading-8">
+                    <h2 className='font-bold text-3xl leading-8'>
                       {producto.cantidad}x {producto.producto}
                     </h2>
 
                     {producto.combos.map((combo, index) => (
                       <ul
-                        className="font-semibold pl-5 text-2xl leading-6"
+                        className='font-semibold pl-5 text-2xl leading-6'
                         key={index}
                       >
                         <li>
@@ -208,7 +221,7 @@ export const OrdersPage = () => {
                     ))}
 
                     {producto.observacion && (
-                      <p className="font-semibold pl-5 text-2xl leading-6">
+                      <p className='font-semibold pl-5 text-2xl leading-6'>
                         - {producto.observacion}
                       </p>
                     )}
@@ -216,15 +229,15 @@ export const OrdersPage = () => {
                 ))}
               </CardContent>
               <Button
-                className="absolute bottom-2 right-4 rounded-full w-[55px] h-[55px] text-[20px] shadow-lg"
+                className='absolute bottom-2 right-4 rounded-full w-[55px] h-[55px] text-[20px] shadow-lg'
                 style={{ backgroundColor: `#${themeColors.done}` }}
-                variant="outline"
+                variant='outline'
                 onClick={() => {
                   playDone()
                   actualizarOrden(orden.id, orden.orden, true, nombreEquipo)
                 }}
               >
-                <CheckCheck className="!w-[25px] !h-[25px] text-[#fff" />
+                <CheckCheck className='!w-[25px] !h-[25px] text-[#fff' />
               </Button>
             </Card>
           ))}
