@@ -9,6 +9,9 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss')
 
+    if (nombreEquipo === 'DespachoToptech') {
+      nombreEquipo = ''
+    }
     const pool = await poolPromise
     //    const result = await pool.request().query(`
     //     SELECT  Visitas.Id as id, Mesas.Nombre as mesa, Meseros.Nombre as mesero, TipoEnvios.Nombre as tipoEnvio,ParaLlevar.Nombre as paraLlevar,

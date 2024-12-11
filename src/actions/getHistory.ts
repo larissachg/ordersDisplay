@@ -9,6 +9,9 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss')
 
+    if (nombreEquipo === 'DespachoToptech') {
+      nombreEquipo = ''
+    }
     const pool = await poolPromise
     const result = await pool.request().query(`
      SELECT  

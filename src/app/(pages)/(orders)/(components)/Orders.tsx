@@ -71,12 +71,13 @@ export const OrdersPage = () => {
   const actualizarOrden = async (
     idVisita: number,
     idOrden: number,
-    terminado: boolean
+    terminado: boolean,
+    nombreEquipo: string
   ) => {
     try {
       const resp = await fetch(`/api/ordenes`, {
         method: 'PUT',
-        body: JSON.stringify({ idVisita, idOrden, terminado })
+        body: JSON.stringify({ idVisita, idOrden, terminado, nombreEquipo })
       })
       if (!resp.ok) {
         throw new Error('Error al actualizar la orden')
@@ -90,7 +91,8 @@ export const OrdersPage = () => {
               color: 'black'
             },
             label: 'Deshacer',
-            onClick: () => actualizarOrden(idVisita, idOrden, false)
+            onClick: () =>
+              actualizarOrden(idVisita, idOrden, false, nombreEquipo)
           },
           richColors: true,
           position: 'bottom-center'
@@ -219,7 +221,7 @@ export const OrdersPage = () => {
                 variant="outline"
                 onClick={() => {
                   playDone()
-                  actualizarOrden(orden.id, orden.orden, true)
+                  actualizarOrden(orden.id, orden.orden, true, nombreEquipo)
                 }}
               >
                 <CheckCheck className="!w-[25px] !h-[25px] text-[#fff" />

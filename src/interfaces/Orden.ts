@@ -23,7 +23,7 @@ export interface Orden {
   orden: number; // Columna 'orden'
   hora: string; // Columna 'hora' (formato ISO string)
   terminado?: null | string;
-
+  
   productos: Producto[];
 }
 

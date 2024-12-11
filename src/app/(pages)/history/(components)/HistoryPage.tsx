@@ -96,12 +96,13 @@ export const HistoryPage = () => {
   const rehacerOrden = async (
     idVisita: number,
     idOrden: number,
-    terminado: boolean
+    terminado: boolean,
+    nombreEquipo: string
   ) => {
     try {
       const resp = await fetch(`/api/ordenes`, {
         method: 'PUT',
-        body: JSON.stringify({ idVisita, idOrden, terminado })
+        body: JSON.stringify({ idVisita, idOrden, terminado, nombreEquipo })
       })
       if (!resp.ok) {
         throw new Error('Error al actualizar la orden')
@@ -228,7 +229,12 @@ export const HistoryPage = () => {
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() =>
-                          rehacerOrden(orden.id, orden.orden, false)
+                          rehacerOrden(
+                            orden.id,
+                            orden.orden,
+                            false,
+                            nombreEquipo
+                          )
                         }
                         style={{
                           backgroundColor: '#d17f7f'
