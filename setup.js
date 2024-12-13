@@ -116,8 +116,20 @@ try {
 
   try {
     console.log('🔥 Iniciando la aplicación con PM2...')
-    execSync('pm2 stop all', { stdio: 'inherit' })
-    execSync('pm2 delete all', { stdio: 'inherit' })
+
+    try {
+      const pm2ListOutput = execSync('pm2 list').toString()
+      if (!pm2ListOutput.includes('online')) {
+        console.log('⚠️ No hay procesos activos en PM2. Continuando...')
+      } else {
+        console.log('🛑 Deteniendo procesos existentes en PM2...')
+        execSync('pm2 stop all')
+        execSync('pm2 delete all')
+      }
+    } catch (error) {
+      console.error('❌ Error al listar procesos de PM2:', error.message)
+    }
+
     execSync('pm2 start pm2.json', { stdio: 'inherit' })
     execSync('pm2 save --force', { stdio: 'inherit' })
 
