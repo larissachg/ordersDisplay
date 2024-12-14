@@ -22,7 +22,7 @@ export async function actualizarOrden({
       ? moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:ss')
       : null
 
-    if (nombreEquipo === 'DespachoToptech') {
+    if (nombreEquipo.toLowerCase().includes('despacho')) {
       const result = await pool
         .request()
         .input('idOrden', sql.Int, idOrden)
