@@ -9,11 +9,17 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss')
 
-    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
-        INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
-
+     let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
+      INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
+     let whereStr = ''
     if (nombreEquipo === 'DespachoToptech') {
-      despachoStr = ``
+      despachoStr = ''    
+    }else if (nombreEquipo === 'DespachoDeliveryToptech') {      
+      despachoStr = ''
+      whereStr = ' and Visitas.MesaID is null'
+    }else if (nombreEquipo === 'DespachoMesaToptech') {      
+      despachoStr = ''
+      whereStr = ' and Visitas.MesaID is not null'
     }
 
     const pool = await poolPromise
@@ -48,7 +54,7 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
         ${despachoStr}       
     WHERE 
         DetalleCuenta.Hora >= '${startOfToday}'
-        AND DetalleCuenta.Terminado IS NOT NULL   
+        AND DetalleCuenta.Terminado IS NOT NULL ${whereStr}       
     ORDER BY 
         DetalleCuenta.Orden desc, 
         Visitas.Id desc, 

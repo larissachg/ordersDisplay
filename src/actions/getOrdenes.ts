@@ -9,13 +9,22 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss')
 
+    let despachoTopVisitasStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
+      INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
+
     let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
 
     if (nombreEquipo === 'DespachoToptech') {
+      despachoTopVisitasStr = ''
+      despachoStr = ''    
+    }else if (nombreEquipo === 'DespachoDeliveryToptech') {
+      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null '
+      despachoStr = ''
+    }else if (nombreEquipo === 'DespachoMesaToptech') {
+      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null '
       despachoStr = ''
     }
-    console.log(nombreEquipo)
 
     const query1 = `
   WITH TopVisitas AS (
@@ -24,8 +33,8 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
           ROW_NUMBER() OVER (ORDER BY DetalleCuenta.Orden, DetalleCuenta.VisitaID) AS RN
       FROM 
           DetalleCuenta
-      INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
-      ${despachoStr}
+          INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
+      ${despachoTopVisitasStr}
       WHERE 
           DetalleCuenta.Hora >= '${startOfToday}'
           AND DetalleCuenta.Terminado IS NULL      
@@ -71,6 +80,8 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
       DetalleCuenta.Hora, 
       Productos.Nombre;
   `
+
+
     const pool = await poolPromise
     const result = await pool.request().query(query1)
     return result.recordset as OrdenDb[]
