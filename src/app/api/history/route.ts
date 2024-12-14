@@ -7,6 +7,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const equipo = searchParams.get("equipo") ?? "";
+
     const ordenesDb: OrdenDb[] = await getHistoryDb(equipo);
 
     const ordenes: Orden[] = processOrders(ordenesDb);

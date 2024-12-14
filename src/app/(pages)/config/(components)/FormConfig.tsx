@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Equipo } from "@/interfaces/Equipo";
-import { redirect, useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,10 +28,11 @@ const themeColors = {
 
 export const FormConfig = () => {
   const [nombreEquipo, setNombreEquipo] = useState("");
+  const [conDesglose, setconDesglose] = useState("1");
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const router = useRouter();
+  //const router = useRouter();
 
   const getEquipos = useCallback(async () => {
     try {
@@ -42,26 +44,28 @@ export const FormConfig = () => {
       }
       const data = await resp.json();
 
-      if (data.length === 1) {
-        localStorage.setItem("equipo", data[0].nombreFisico);
-        setTimeout(() => {
-          toast(`Equipo registrado exitosamente, ${data[0].nombreFisico}`, {
-            style: {
-              backgroundColor: "#d6edda",
-              color: "green",
-            },
-          });
-        }, 500);
-        return router.push("/");
-      }
+      //if (data.length === 1) {
+      //  localStorage.setItem("equipo", data[0].nombreFisico);
+      //  localStorage.setItem("conDesglose", "1");
+      //  setTimeout(() => {
+      //    toast(`Equipo registrado exitosamente, ${data[0].nombreFisico}`, {
+      //      style: {
+      //        backgroundColor: "#d6edda",
+      //        color: "green",
+      //      },
+      //    });
+      //  }, 500);
+      //  return router.push("/");
+      //}
 
       setEquipos(data);
       setNombreEquipo(localStorage.getItem("equipo") || "");
+      setconDesglose(localStorage.getItem("conDesglose") || "1");
       setIsLoaded(true);
     } catch (error) {
       console.error(error);
     }
-  }, [router]);
+  }, []);//[router]
 
   useEffect(() => {
     getEquipos();
@@ -78,6 +82,8 @@ export const FormConfig = () => {
     }
 
     localStorage.setItem("equipo", nombreEquipo);
+    localStorage.setItem("conDesglose", conDesglose);
+
     toast(`Equipo registrado exitosamente, ${nombreEquipo}`, {
       style: {
         backgroundColor: "#d6edda",
@@ -105,11 +111,11 @@ export const FormConfig = () => {
       <form>
         <Card className="min-w-[200px] sm:w-[450px] pt-3 p-4 flex flex-col gap-2">
           <CardHeader>
-            <CardTitle>Registro de Equipo</CardTitle>
+            <CardTitle>Registro de configuraciones</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid w-full items-center gap-4">
-              <Label htmlFor="name">Selecciona el equipo de tu empresa</Label>
+              <Label htmlFor="name">Selecciona el equipo:</Label>
 
               {isLoaded ? (
                 <Select onValueChange={setNombreEquipo} value={nombreEquipo}>
@@ -130,6 +136,19 @@ export const FormConfig = () => {
               ) : (
                 <p>Cargando equipos...</p>
               )}
+
+              <Label htmlFor="desglose">Con Desglose:</Label>
+                <Checkbox
+                  id="desglose"
+                  checked={conDesglose === "1"}
+                  onCheckedChange={(value) => {
+                    console.log("Checkbox clicado, valor:", value);
+                    setconDesglose(value ? "1" : "0");
+                  }}                 
+                />
+              
+              
+              
             </div>
           </CardContent>
           <CardFooter className="flex justify-between mt-3">
