@@ -17,12 +17,14 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
 
     if (nombreEquipo === 'DespachoToptech') {
       despachoTopVisitasStr = ''
-      despachoStr = ''    
-    }else if (nombreEquipo === 'DespachoDeliveryToptech') {
-      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null '
       despachoStr = ''
-    }else if (nombreEquipo === 'DespachoMesaToptech') {
-      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null '
+    } else if (nombreEquipo === 'DespachoToptechDelivery') {
+      despachoTopVisitasStr =
+        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null '
+      despachoStr = ''
+    } else if (nombreEquipo === 'DespachoToptechMesa') {
+      despachoTopVisitasStr =
+        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null '
       despachoStr = ''
     }
 
@@ -43,7 +45,8 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
   )
   SELECT  
       Visitas.Id AS id,
-      iif(Visitas.Identificador is null OR LEN(TRIM(Visitas.Identificador)) <= 2, Mesas.Nombre,Visitas.Identificador) AS mesa,
+      iif(Visitas.Identificador is null OR LEN(TRIM(Visitas.Identificador)) <= 2, Mesas.Nombre, 
+      iif( RIGHT(Identificador, 2) = '|0' , LEFT(Identificador, LEN(Identificador) - 2) , Identificador) ) AS mesa,
       Meseros.Nombre AS mesero,
       TipoEnvios.Nombre AS tipoEnvio,
       ParaLlevar.Nombre AS paraLlevar, 
@@ -80,7 +83,6 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
       DetalleCuenta.Hora, 
       Productos.Nombre;
   `
-
 
     const pool = await poolPromise
     const result = await pool.request().query(query1)

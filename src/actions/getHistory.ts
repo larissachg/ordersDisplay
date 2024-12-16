@@ -9,15 +9,15 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss')
 
-     let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
+    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
-     let whereStr = ''
+    let whereStr = ''
     if (nombreEquipo === 'DespachoToptech') {
-      despachoStr = ''    
-    }else if (nombreEquipo === 'DespachoDeliveryToptech') {      
+      despachoStr = ''
+    } else if (nombreEquipo === 'DespachoToptechDelivery') {
       despachoStr = ''
       whereStr = ' and Visitas.MesaID is null'
-    }else if (nombreEquipo === 'DespachoMesaToptech') {      
+    } else if (nombreEquipo === 'DespachoToptechMesa') {
       despachoStr = ''
       whereStr = ' and Visitas.MesaID is not null'
     }
