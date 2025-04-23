@@ -25,6 +25,9 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
       ? moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:ss')
       : null
 
+    const whereActualizar = fechaTerminado === null ? '' : ' and Terminado is null '
+   
+
     if ('detalleCuentaId' in params) {
       const { detalleCuentaId, nombreEquipo } = params;
       if (nombreEquipo.startsWith('DespachoToptech')) {
@@ -38,7 +41,7 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
           ).query(`
             UPDATE DetalleCuenta
             SET Terminado = @terminado
-            WHERE ID = @detalleCuentaId
+            WHERE ID = @detalleCuentaId ${whereActualizar}
           `);
 
         if (result.rowsAffected[0] > 0) {
@@ -64,7 +67,7 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
             INNER JOIN Impresoras I ON TP.kitchenDisplayID = I.ImpresoraID
             WHERE 
               DC.ID = @detalleCuentaId
-              AND I.NombreFisico LIKE '%' + @nombreEquipo + '%';
+              AND I.NombreFisico LIKE '%' + @nombreEquipo + '%' ${whereActualizar};
           `);
 
         if (result.rowsAffected[0] > 0) {
@@ -88,7 +91,7 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
           ).query(`       
         UPDATE DetalleCuenta
         SET Terminado = @terminado
-        WHERE VisitaID = @idVisita and Orden = @idOrden
+        WHERE VisitaID = @idVisita and Orden = @idOrden ${whereActualizar}
 `)
 
         // Verifica si se actualizó alguna fila
@@ -117,7 +120,7 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
           WHERE 
             DC.VisitaID = @idVisita
             AND DC.Orden = @idOrden
-            AND I.NombreFisico LIKE '%' + @nombreEquipo + '%';
+            AND I.NombreFisico LIKE '%' + @nombreEquipo + '%' ${whereActualizar};
         `)
 
         // Verifica si se actualizó alguna fila

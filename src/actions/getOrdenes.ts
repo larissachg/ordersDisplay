@@ -4,27 +4,31 @@ import moment from 'moment-timezone'
 
 export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
   try {
-    const startOfToday = moment
-      .tz('America/La_Paz')
+    const now = moment().tz('America/La_Paz'); // Get time once on server
+    const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const startOfTomorrow = now
+      .clone()
+      .add(1, 'day')
       .startOf('day')
-      .format('YYYY-MM-DD HH:mm:ss')
+      .format('YYYY-MM-DD HH:mm:ss');
 
-    let despachoTopVisitasStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
+
+    let despachoTopVisitasStr = ` INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
 
     let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
 
     if (nombreEquipo === 'DespachoToptech') {
-      despachoTopVisitasStr = ''
+      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
       despachoStr = ''
     } else if (nombreEquipo === 'DespachoToptechDelivery') {
       despachoTopVisitasStr =
-        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null '
+        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
       despachoStr = ''
     } else if (nombreEquipo === 'DespachoToptechMesa') {
       despachoTopVisitasStr =
-        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null '
+        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
       despachoStr = ''
     }
 
@@ -36,9 +40,9 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       FROM 
           DetalleCuenta
           INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
-      ${despachoTopVisitasStr}
+          ${despachoTopVisitasStr}
       WHERE 
-          DetalleCuenta.Hora >= '${startOfToday}'
+          iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
           AND DetalleCuenta.Terminado IS NULL    
           AND DetalleCuenta.Borrada = 0
       GROUP BY 
@@ -46,11 +50,13 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
   ),
   OrdersWithPendingItems AS (
       SELECT DISTINCT
-          DetalleCuenta.VisitaID, Orden
+          DetalleCuenta.VisitaID, DetalleCuenta.Orden
       FROM
           DetalleCuenta
+          INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
+          ${despachoTopVisitasStr}
       WHERE
-          DetalleCuenta.Hora >= '${startOfToday}'
+          iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
           AND DetalleCuenta.Terminado IS NULL
           AND DetalleCuenta.Borrada = 0
   )
@@ -88,7 +94,7 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       INNER JOIN TopVisitas ON DetalleCuenta.VisitaID = TopVisitas.VisitaID and DetalleCuenta.Orden = TopVisitas.Orden
       ${despachoStr}      
   WHERE 
-      DetalleCuenta.Hora >= '${startOfToday}'
+      iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
       AND TopVisitas.RN <= ${limit} 
   ORDER BY 
       DetalleCuenta.Orden, 
@@ -96,8 +102,11 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       DetalleCuenta.Hora, 
       Productos.Nombre;
   `
+    //console.log('Query:', query1)
     const pool = await poolPromise
     const result = await pool.request().query(query1)
+   // console.log('Result:', result)
+
     return result.recordset as OrdenDb[]
   } catch (error) {
     console.error('Error al obtener las órdenes:', error)

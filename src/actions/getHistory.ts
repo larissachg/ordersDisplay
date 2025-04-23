@@ -4,10 +4,14 @@ import moment from 'moment-timezone'
 
 export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
   try {
-    const startOfToday = moment
-      .tz('America/La_Paz')
-      .startOf('day')
-      .format('YYYY-MM-DD HH:mm:ss')
+      const now = moment().tz('America/La_Paz'); // Get time once on server
+      const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      const startOfTomorrow = now
+        .clone()
+        .add(1, 'day')
+        .startOf('day')
+        .format('YYYY-MM-DD HH:mm:ss');
+  
 
     let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
@@ -53,7 +57,7 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
         LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID 
         ${despachoStr}       
     WHERE 
-        DetalleCuenta.Hora >= '${startOfToday}'
+        iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
         AND DetalleCuenta.Terminado IS NOT NULL ${whereStr}       
     ORDER BY 
         DetalleCuenta.Orden desc, 
