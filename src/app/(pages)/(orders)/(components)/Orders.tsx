@@ -49,7 +49,7 @@ export const OrdersPage = () => {
         }
       )
       if (!resp.ok) {
-        throw new Error('Error al obtener los equipos')
+        throw new Error('Error al obtener las ordenes')
       }
       const data = await resp.json()
 
@@ -89,6 +89,42 @@ export const OrdersPage = () => {
 
     return () => clearInterval(interval)
   }, [getOrdenes])
+
+  const actualizarItem = async (
+    detalleCuentaId: number,
+    terminado: boolean,
+    nombreEquipo: string
+  ) => {
+    try {
+      const resp = await fetch(`/api/ordenes`, {
+        method: 'PUT',
+        body: JSON.stringify({ detalleCuentaId, terminado, nombreEquipo })
+      })
+      if (!resp.ok) {
+        setErrorMessage('Error al actualizar el item, recarge la pantalla')
+        return
+      }
+
+      if (terminado) {
+        toast.success('Item entregado exitosamente!', {
+          action: {
+            actionButtonStyle: {
+              backgroundColor: `blue`,
+              color: 'black'
+            },
+            label: 'Deshacer',
+            onClick: () => actualizarItem(detalleCuentaId, false, nombreEquipo)
+          },
+          richColors: true,
+          position: 'bottom-center'
+        })
+      }
+
+      await getOrdenes()
+    } catch (error) {
+      console.error(error)
+    }
+  }
 
   const actualizarOrden = async (
     idVisita: number,
@@ -324,16 +360,42 @@ export const OrdersPage = () => {
                 <CardContent className='flex-1 min-h-20'>
                   {orden.productos.map((producto, index) => (
                     <div
-                      key={`${producto.producto}${orden.orden}${index} `}
-                      className={`py-1 px-2 flex flex-col capitalize ${
+                      key={`${producto.producto}${orden.orden}${index}`}
+                      className={`py-1 px-2 flex flex-col capitalize relative ${
                         producto.borrada
                           ? 'line-through text-[#d17f7f] animate-pulse'
+                          : producto.terminado
+                          ? 'line-through text-[#a0bd93]'
                           : ''
                       }`}
                     >
-                      <h2 className='font-bold text-3xl leading-8'>
-                        {producto.cantidad}x {producto.producto}
-                      </h2>
+                      <div className='flex items-center gap-2'>
+                        <Button
+                          className='w-[40px] h-[40px] text-[16px] shadow-lg'
+                          style={{
+                            backgroundColor: `#${themeColors.done}`,
+                            opacity:
+                              producto.borrada === 1 ||
+                              producto.terminado !== null
+                                ? 0
+                                : 1
+                          }}
+                          variant='outline'
+                          onClick={() => {
+                            playDone()
+                            actualizarItem(
+                              producto.detalleCuentaId,
+                              true,
+                              nombreEquipo
+                            )
+                          }}
+                        >
+                          <CheckCheck className='!w-[20px] !h-[20px] text-[#fff]' />
+                        </Button>
+                        <h2 className='font-bold text-3xl leading-8'>
+                          {producto.cantidad}x {producto.producto}
+                        </h2>
+                      </div>
 
                       {producto.combos.map((combo, index) => (
                         <ul

@@ -1,7 +1,13 @@
 import moment from 'moment-timezone'
 import { poolPromise, sql } from './db'
 
-// Define el tipo de los parámetros que se esperan
+
+interface ActualizarItemParams {
+  detalleCuentaId: number;
+  terminado: boolean;
+  nombreEquipo: string;
+}
+
 interface ActualizarOrdenParams {
   idVisita: number
   idOrden: number
@@ -9,52 +15,99 @@ interface ActualizarOrdenParams {
   nombreEquipo: string
 }
 
-export async function actualizarOrden({
-  idVisita,
-  idOrden,
-  terminado,
-  nombreEquipo
-}: ActualizarOrdenParams): Promise<string> {
+type ActualizarParams = ActualizarItemParams | ActualizarOrdenParams;
+
+export async function actualizarOrden(params: ActualizarParams): Promise<string> {
   try {
     const pool = await poolPromise
 
-    const fechaTerminado = terminado
+    const fechaTerminado = params.terminado
       ? moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:ss')
       : null
 
-    if (nombreEquipo.startsWith('DespachoToptech')) {
-      const result = await pool
-        .request()
-        .input('idOrden', sql.Int, idOrden)
-        .input('idVisita', sql.Int, idVisita)
-        .input(
-          'terminado',
-          fechaTerminado ? sql.DateTime : sql.NVarChar,
-          fechaTerminado
-        ).query(`       
+    if ('detalleCuentaId' in params) {
+      const { detalleCuentaId, nombreEquipo } = params;
+      if (nombreEquipo.startsWith('DespachoToptech')) {
+        const result = await pool
+          .request()
+          .input('detalleCuentaId', sql.Int, detalleCuentaId)
+          .input(
+            'terminado',
+            fechaTerminado ? sql.DateTime : sql.NVarChar,
+            fechaTerminado
+          ).query(`
+            UPDATE DetalleCuenta
+            SET Terminado = @terminado
+            WHERE ID = @detalleCuentaId
+          `);
+
+        if (result.rowsAffected[0] > 0) {
+          return 'Item actualizado correctamente';
+        } else {
+          return 'No se encontró el item para actualizar';
+        }
+      } else {
+        const result = await pool
+          .request()
+          .input('detalleCuentaId', sql.Int, detalleCuentaId)
+          .input('nombreEquipo', sql.VarChar, nombreEquipo)
+          .input(
+            'terminado',
+            fechaTerminado ? sql.DateTime : sql.NVarChar,
+            fechaTerminado
+          ).query(`
+            UPDATE DC
+            SET DC.Terminado = @terminado
+            FROM DetalleCuenta DC
+            INNER JOIN Productos P ON P.ID = DC.ProductoID
+            INNER JOIN TiposProductos TP ON TP.TipoProductoID = P.TipoProductoID
+            INNER JOIN Impresoras I ON TP.kitchenDisplayID = I.ImpresoraID
+            WHERE 
+              DC.ID = @detalleCuentaId
+              AND I.NombreFisico LIKE '%' + @nombreEquipo + '%';
+          `);
+
+        if (result.rowsAffected[0] > 0) {
+          return 'Item actualizado correctamente';
+        } else {
+          return 'No se encontró el item para actualizar';
+        }
+      }
+
+    } else {
+      const { idVisita, idOrden, nombreEquipo } = params;
+      if (nombreEquipo.startsWith('DespachoToptech')) {
+        const result = await pool
+          .request()
+          .input('idOrden', sql.Int, idOrden)
+          .input('idVisita', sql.Int, idVisita)
+          .input(
+            'terminado',
+            fechaTerminado ? sql.DateTime : sql.NVarChar,
+            fechaTerminado
+          ).query(`       
         UPDATE DetalleCuenta
         SET Terminado = @terminado
         WHERE VisitaID = @idVisita and Orden = @idOrden
 `)
 
-      // Verifica si se actualizó alguna fila
-      if (result.rowsAffected[0] > 0) {
-        return 'Orden actualizada correctamente'
+        // Verifica si se actualizó alguna fila
+        if (result.rowsAffected[0] > 0) {
+          return 'Orden actualizada correctamente'
+        } else {
+          return 'No se encontró la orden para actualizar'
+        }
       } else {
-        return 'No se encontró la orden para actualizar'
-      }
-    } else {
-      // Realiza la consulta de actualización
-      const result = await pool
-        .request()
-        .input('idOrden', sql.Int, idOrden)
-        .input('idVisita', sql.Int, idVisita)
-        .input('nombreEquipo', sql.VarChar, nombreEquipo)
-        .input(
-          'terminado',
-          fechaTerminado ? sql.DateTime : sql.NVarChar,
-          fechaTerminado
-        ).query(`       
+        const result = await pool
+          .request()
+          .input('idOrden', sql.Int, idOrden)
+          .input('idVisita', sql.Int, idVisita)
+          .input('nombreEquipo', sql.VarChar, nombreEquipo)
+          .input(
+            'terminado',
+            fechaTerminado ? sql.DateTime : sql.NVarChar,
+            fechaTerminado
+          ).query(`       
           UPDATE DC
           SET DC.Terminado = @terminado
           FROM DetalleCuenta DC
@@ -67,11 +120,12 @@ export async function actualizarOrden({
             AND I.NombreFisico LIKE '%' + @nombreEquipo + '%';
         `)
 
-      // Verifica si se actualizó alguna fila
-      if (result.rowsAffected[0] > 0) {
-        return 'Orden actualizada correctamente'
-      } else {
-        return 'No se encontró la orden para actualizar'
+        // Verifica si se actualizó alguna fila
+        if (result.rowsAffected[0] > 0) {
+          return 'Orden actualizada correctamente'
+        } else {
+          return 'No se encontró la orden para actualizar'
+        }
       }
     }
   } catch (error) {

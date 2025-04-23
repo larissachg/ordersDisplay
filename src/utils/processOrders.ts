@@ -33,6 +33,8 @@ export const processOrders = (ordenesDb: OrdenDb[]): Orden[] => {
           borrada: producto.borrada,
           observacion: producto.observacion,
           combos: combos,
+          detalleCuentaId: producto.detalleCuentaId,
+          terminado: producto.terminado ?? null,
         };
       });
 
@@ -45,7 +47,6 @@ export const processOrders = (ordenesDb: OrdenDb[]): Orden[] => {
         orden: ordenDb.orden,
         hora: ordenDb.hora,
         productos: productos,
-        terminado: ordenDb.terminado,
       });
     }
   }

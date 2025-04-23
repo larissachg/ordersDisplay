@@ -28,7 +28,25 @@ export async function GET(req: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { idOrden, idVisita, terminado, nombreEquipo } = body
+    const { detalleCuentaId, idVisita, idOrden, terminado, nombreEquipo } = body;
+
+    if (detalleCuentaId !== undefined) {
+      if (terminado === undefined) {
+        return NextResponse.json(
+          { error: 'detalleCuentaId y terminado son requeridos' },
+          { status: 400 }
+        );
+      }
+
+      const result = await actualizarOrden({
+        detalleCuentaId,
+        terminado,
+        nombreEquipo,
+      });
+
+      return NextResponse.json(result, { status: 201 });
+    }
+
 
     if (!idOrden || !idVisita || terminado === undefined) {
       return NextResponse.json(

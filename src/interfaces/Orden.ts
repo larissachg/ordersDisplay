@@ -11,6 +11,7 @@ export interface OrdenDb {
   borrada: number; // Columna 'borrada' (asumo que es un boolean representado como 0 o 1)
   observacion: string | null; // Columna 'observacion', puede ser null
   productosCombo: string | null;
+  detalleCuentaId: number; // Columna 'detalleCuentaId'
   terminado?: null | string;
 }
 
@@ -23,7 +24,7 @@ export interface Orden {
   orden: number; // Columna 'orden'
   hora: string; // Columna 'hora' (formato ISO string)
   terminado?: null | string;
-  
+
   productos: Producto[];
 }
 
@@ -32,6 +33,9 @@ export interface Producto {
   cantidad: number; // Columna 'cantidad'
   borrada: number; // Columna 'borrada' (asumo que es un boolean representado como 0 o 1)
   observacion: string | null; // Columna 'observacion', puede ser null
+
+  detalleCuentaId: number; // Columna 'detalleCuentaId'
+  terminado: string | null; // Columna 'terminado'
 
   combos: ProductoCombo[];
 }

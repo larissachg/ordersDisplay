@@ -39,9 +39,20 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       ${despachoTopVisitasStr}
       WHERE 
           DetalleCuenta.Hora >= '${startOfToday}'
-          AND DetalleCuenta.Terminado IS NULL      
+          AND DetalleCuenta.Terminado IS NULL    
+          AND DetalleCuenta.Borrada = 0
       GROUP BY 
           DetalleCuenta.VisitaID, DetalleCuenta.Orden
+  ),
+  OrdersWithPendingItems AS (
+      SELECT DISTINCT
+          DetalleCuenta.VisitaID, Orden
+      FROM
+          DetalleCuenta
+      WHERE
+          DetalleCuenta.Hora >= '${startOfToday}'
+          AND DetalleCuenta.Terminado IS NULL
+          AND DetalleCuenta.Borrada = 0
   )
   SELECT  
       Visitas.Id AS id,
@@ -53,9 +64,11 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       Productos.Nombre AS producto,
       DetalleCuenta.Orden AS orden,
       DetalleCuenta.Cantidad AS cantidad,
+      DetalleCuenta.ID AS detalleCuentaId,
       CAST(DetalleCuenta.Hora AS DATETIME) AS hora,
       DetalleCuenta.Borrada AS borrada, 
       Observaciones.Observacion AS observacion,
+      DetalleCuenta.Terminado AS terminado,
       (
           SELECT STRING_AGG(P2.Nombre, ',') 
           FROM ProductosCombos
@@ -71,11 +84,11 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       LEFT JOIN Mesas ON Mesas.ID = Visitas.MesaID 
       LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID 
       LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID 
+      INNER JOIN OrdersWithPendingItems ON DetalleCuenta.VisitaID = OrdersWithPendingItems.VisitaID AND DetalleCuenta.Orden = OrdersWithPendingItems.Orden
       INNER JOIN TopVisitas ON DetalleCuenta.VisitaID = TopVisitas.VisitaID and DetalleCuenta.Orden = TopVisitas.Orden
       ${despachoStr}      
   WHERE 
       DetalleCuenta.Hora >= '${startOfToday}'
-      AND DetalleCuenta.Terminado IS NULL
       AND TopVisitas.RN <= ${limit} 
   ORDER BY 
       DetalleCuenta.Orden, 
@@ -83,7 +96,6 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       DetalleCuenta.Hora, 
       Productos.Nombre;
   `
-    console.log(query1)
     const pool = await poolPromise
     const result = await pool.request().query(query1)
     return result.recordset as OrdenDb[]
