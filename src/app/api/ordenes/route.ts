@@ -9,7 +9,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const equipo = searchParams.get('equipo') ?? ''
-    const ordenesDb: OrdenDb[] = await getOrdenesDb(equipo)
+    const limit = searchParams.get("limit") ?? 9;
+
+    const ordenesDb: OrdenDb[] = await getOrdenesDb(equipo, +limit)
 
     const ordenes: Orden[] = processOrders(ordenesDb)
 

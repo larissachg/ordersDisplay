@@ -2,7 +2,7 @@ import { OrdenDb } from '@/interfaces/Orden'
 import { poolPromise } from './db'
 import moment from 'moment-timezone'
 
-export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
+export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
   try {
     const startOfToday = moment
       .tz('America/La_Paz')
@@ -76,14 +76,14 @@ export async function getOrdenesDb(nombreEquipo: string): Promise<OrdenDb[]> {
   WHERE 
       DetalleCuenta.Hora >= '${startOfToday}'
       AND DetalleCuenta.Terminado IS NULL
-      AND TopVisitas.RN <= 9
+      AND TopVisitas.RN <= ${limit} 
   ORDER BY 
       DetalleCuenta.Orden, 
       Visitas.Id, 
       DetalleCuenta.Hora, 
       Productos.Nombre;
   `
-
+    console.log(query1)
     const pool = await poolPromise
     const result = await pool.request().query(query1)
     return result.recordset as OrdenDb[]
