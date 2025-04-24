@@ -1,5 +1,6 @@
 
 Extraer el zip ordersDisplay en el disco C:\RestoTech\ordersDisplay
+(folders: public y src)
 
 Paso 1.- El primer paso es correr el instalador de node-v22.12.0-x64
 Paso 2.- correr el archivo app/runSetup.bat 2 veces, la primera instalara los paquetes 

@@ -12,97 +12,150 @@ export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise
       .startOf('day')
       .format('YYYY-MM-DD HH:mm:ss');
 
+      let despachoTopVisitasStr = `
+    INNER JOIN Visitas v ON v.ID = dc.VisitaID
+    LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
+    INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
+`;
 
-    let despachoTopVisitasStr = ` INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
-      INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
+let despachoStr = `
+    INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
+    INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
+`;
 
-    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
-      INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
+if (nombreEquipo === 'DespachoToptech') {
+    despachoTopVisitasStr = `
+        INNER JOIN Visitas v ON v.ID = dc.VisitaID
+        LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    `;
+    despachoStr = '';
+} else if (nombreEquipo === 'DespachoToptechDelivery') {
+    despachoTopVisitasStr = `
+        INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NULL
+        LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    `;
+    despachoStr = '';
+} else if (nombreEquipo === 'DespachoToptechMesa') {
+    despachoTopVisitasStr = `
+        INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NOT NULL
+        LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    `;
+    despachoStr = '';
+}
 
-    if (nombreEquipo === 'DespachoToptech') {
-      despachoTopVisitasStr = ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
-      despachoStr = ''
-    } else if (nombreEquipo === 'DespachoToptechDelivery') {
-      despachoTopVisitasStr =
-        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is null LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
-      despachoStr = ''
-    } else if (nombreEquipo === 'DespachoToptechMesa') {
-      despachoTopVisitasStr =
-        ' INNER JOIN Visitas ON Visitas.ID = DetalleCuenta.VisitaID and Visitas.MesaID is not null LEFT JOIN ParaLLevar on ParaLLevar.ParaLlevarID = visitas.ParaLlevarID '
-      despachoStr = ''
-    }
+const query1 = `WITH BaseData AS (
+    SELECT DISTINCT
+        dc.VisitaID,
+        dc.Orden,
+        dc.ID AS DetalleCuentaID,
+        dc.Cantidad,
+        dc.Hora,
+        dc.Borrada,
+        dc.Terminado,
+        dc.TomoPedidoMeseroID,
+        dc.ProductoID,
+        COALESCE(pl.HoraRecoger, dc.Hora) AS HoraEfectiva,
+        v.ID AS VisitaID_Visitas,
+        v.Identificador,
+        v.MesaID,
+        v.TipoEnvioID,
+        v.ParaLlevarID,
+        p.TipoProductoID
+    FROM
+        DetalleCuenta dc
+        INNER JOIN Productos p ON p.ID = dc.ProductoID
+        ${despachoTopVisitasStr}
+    WHERE
+        COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' and '${startOfTomorrow}'
+        AND dc.Borrada = 0
+),
+TopVisitas AS (
+    SELECT
+        VisitaID,
+        Orden,
+        ROW_NUMBER() OVER (ORDER BY Orden, VisitaID) AS RN
+    FROM
+        BaseData
+    WHERE
+        Terminado IS NULL -- Movemos el filtro de Terminado aquí para limitar las filas en TopVisitas
+    GROUP BY VisitaID, Orden
+),
+ObservacionesUnicas AS (
+    SELECT
+        DetalleCuentaID,
+        Observacion,
+        ROW_NUMBER() OVER (PARTITION BY DetalleCuentaID ORDER BY Observacion) AS RN
+    FROM
+        Observaciones
+),
+MesasUnicas AS (
+    SELECT
+        ID,
+        Nombre,
+        ROW_NUMBER() OVER (PARTITION BY ID ORDER BY Nombre) AS RN
+    FROM
+        Mesas
+),
+TipoEnviosUnicos AS (
+    SELECT
+        TipoEnvioID,
+        Nombre,
+        ROW_NUMBER() OVER (PARTITION BY TipoEnvioID ORDER BY Nombre) AS RN
+    FROM
+        TipoEnvios
+),
+ParaLlevarUnicos AS (
+    SELECT
+        ParaLlevarID,
+        Nombre,
+        ROW_NUMBER() OVER (PARTITION BY ParaLlevarID ORDER BY Nombre) AS RN
+    FROM
+        ParaLLevar
+)
+SELECT
+    v.Id AS id,
+    COALESCE(
+        NULLIF(LTRIM(RTRIM(v.Identificador)), ''),
+        m.Nombre,
+        CASE WHEN RIGHT(v.Identificador, 2) = '|0' THEN LEFT(v.Identificador, LEN(v.Identificador) - 2) ELSE v.Identificador END
+    ) AS mesa,
+    mes.Nombre AS mesero,
+    te.Nombre AS tipoEnvio,
+    pl.Nombre AS paraLlevar,
+    p.Nombre AS producto,
+    bd.Orden AS orden,
+    bd.Cantidad AS cantidad,
+    bd.DetalleCuentaID AS detalleCuentaId,
+    CAST(bd.Hora AS DATETIME) AS hora,
+    bd.Borrada AS borrada,
+    o.Observacion AS observacion,
+    bd.Terminado AS terminado,
+    (SELECT STRING_AGG(p2.Nombre, ',')
+     FROM ProductosCombos pc
+     INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
+     WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo
+FROM
+    BaseData bd
+    INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
+    INNER JOIN Visitas v ON bd.VisitaID = v.ID
+    INNER JOIN Productos p ON p.ID = bd.ProductoID
+    INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
+    LEFT JOIN ObservacionesUnicas o ON o.DetalleCuentaID = bd.DetalleCuentaID AND o.RN = 1
+    LEFT JOIN MesasUnicas m ON m.ID = v.MesaID AND m.RN = 1
+    LEFT JOIN TipoEnviosUnicos te ON te.TipoEnvioID = v.TipoEnvioID AND te.RN = 1
+    LEFT JOIN ParaLlevarUnicos pl ON pl.ParaLlevarID = v.ParaLlevarID AND pl.RN = 1
+    ${despachoStr}
+WHERE
+    tv.RN <= ${limit}   
+ORDER BY
+    bd.Orden,
+    v.Id,
+    bd.Hora,
+    p.Nombre;
+`;
 
-    const query1 = `
-  WITH TopVisitas AS (
-      SELECT 
-          DetalleCuenta.VisitaID,DetalleCuenta.Orden,
-          ROW_NUMBER() OVER (ORDER BY DetalleCuenta.Orden, DetalleCuenta.VisitaID) AS RN
-      FROM 
-          DetalleCuenta
-          INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
-          ${despachoTopVisitasStr}
-      WHERE 
-          iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
-          AND DetalleCuenta.Terminado IS NULL    
-          AND DetalleCuenta.Borrada = 0
-      GROUP BY 
-          DetalleCuenta.VisitaID, DetalleCuenta.Orden
-  ),
-  OrdersWithPendingItems AS (
-      SELECT DISTINCT
-          DetalleCuenta.VisitaID, DetalleCuenta.Orden
-      FROM
-          DetalleCuenta
-          INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
-          ${despachoTopVisitasStr}
-      WHERE
-          iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
-          AND DetalleCuenta.Terminado IS NULL
-          AND DetalleCuenta.Borrada = 0
-  )
-  SELECT  
-      Visitas.Id AS id,
-      iif(Visitas.Identificador is null OR LEN(TRIM(Visitas.Identificador)) <= 2, Mesas.Nombre, 
-      iif( RIGHT(Identificador, 2) = '|0' , LEFT(Identificador, LEN(Identificador) - 2) , Identificador) ) AS mesa,
-      Meseros.Nombre AS mesero,
-      TipoEnvios.Nombre AS tipoEnvio,
-      ParaLlevar.Nombre AS paraLlevar, 
-      Productos.Nombre AS producto,
-      DetalleCuenta.Orden AS orden,
-      DetalleCuenta.Cantidad AS cantidad,
-      DetalleCuenta.ID AS detalleCuentaId,
-      CAST(DetalleCuenta.Hora AS DATETIME) AS hora,
-      DetalleCuenta.Borrada AS borrada, 
-      Observaciones.Observacion AS observacion,
-      DetalleCuenta.Terminado AS terminado,
-      (
-          SELECT STRING_AGG(P2.Nombre, ',') 
-          FROM ProductosCombos
-          INNER JOIN Productos AS P2 ON P2.ID = ProductosCombos.ProductoID 
-          WHERE ProductosCombos.DetalleCuentaID = DetalleCuenta.ID 
-      ) AS productosCombo
-  FROM 
-      DetalleCuenta INNER JOIN 
-      Visitas ON DetalleCuenta.visitaID = Visitas.ID 
-      INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID 
-      INNER JOIN Meseros ON Meseros.MeseroID = DetalleCuenta.TomoPedidoMeseroID 
-      LEFT JOIN Observaciones ON Observaciones.DetalleCuentaID = DetalleCuenta.ID 
-      LEFT JOIN Mesas ON Mesas.ID = Visitas.MesaID 
-      LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID 
-      LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID 
-      INNER JOIN OrdersWithPendingItems ON DetalleCuenta.VisitaID = OrdersWithPendingItems.VisitaID AND DetalleCuenta.Orden = OrdersWithPendingItems.Orden
-      INNER JOIN TopVisitas ON DetalleCuenta.VisitaID = TopVisitas.VisitaID and DetalleCuenta.Orden = TopVisitas.Orden
-      ${despachoStr}      
-  WHERE 
-      iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
-      AND TopVisitas.RN <= ${limit} 
-  ORDER BY 
-      DetalleCuenta.Orden, 
-      Visitas.Id, 
-      DetalleCuenta.Hora, 
-      Productos.Nombre;
-  `
-    //console.log('Query:', query1)
+   // console.log('Query:', query1)
     const pool = await poolPromise
     const result = await pool.request().query(query1)
    // console.log('Result:', result)

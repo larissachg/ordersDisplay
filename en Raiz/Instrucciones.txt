@@ -1,0 +1,19 @@
+
+Extraer el zip ordersDisplay en el disco C:\RestoTech\ordersDisplay
+
+Paso 1.- El primer paso es correr el instalador de node-v22.12.0-x64
+Paso 2.- correr el archivo app/runSetup.bat 2 veces, la primera instalara los paquetes 
+y la segunda sera para configurar el sitema
+- seguir los pasos para introducir la cadena de conexion para la app y esperar que se configure todo automaticamente
+
+Paso 3.- agregar una tarea automatica
+ - Ir al Programador de Tareas de windows y hacer click en Importar Tarea y importar el archivo Pedidos App Tarea Programada.xml 
+   
+    Por si acaso tambien puedes revisar las capturas como referencia
+  - General: llenar nombre, check en ejecutar con los privilegios mas altos y seleccionar tu sistema (windows 10)
+  - Desencadenadores: agregar nuevo -> revisar screenshot
+                      Es importante poner al menor retraso de 30 segundos a 1 minuto
+  - Acciones: agregar nuevo -> revisar screenshot
+                      Es importante seleccionar el archivo llamado tareaProgramada.bat
+  - Condiciones: desmarcar uso de corriente -> revisar screenshot
+  - Configuracion: revisar screenshot
