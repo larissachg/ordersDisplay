@@ -78,40 +78,8 @@ TopVisitas AS (
     FROM
         BaseData
     WHERE
-        Terminado IS NULL -- Movemos el filtro de Terminado aquí para limitar las filas en TopVisitas
+        Terminado IS NULL
     GROUP BY VisitaID, Orden
-),
-ObservacionesUnicas AS (
-    SELECT
-        DetalleCuentaID,
-        Observacion,
-        ROW_NUMBER() OVER (PARTITION BY DetalleCuentaID ORDER BY Observacion) AS RN
-    FROM
-        Observaciones
-),
-MesasUnicas AS (
-    SELECT
-        ID,
-        Nombre,
-        ROW_NUMBER() OVER (PARTITION BY ID ORDER BY Nombre) AS RN
-    FROM
-        Mesas
-),
-TipoEnviosUnicos AS (
-    SELECT
-        TipoEnvioID,
-        Nombre,
-        ROW_NUMBER() OVER (PARTITION BY TipoEnvioID ORDER BY Nombre) AS RN
-    FROM
-        TipoEnvios
-),
-ParaLlevarUnicos AS (
-    SELECT
-        ParaLlevarID,
-        Nombre,
-        ROW_NUMBER() OVER (PARTITION BY ParaLlevarID ORDER BY Nombre) AS RN
-    FROM
-        ParaLLevar
 )
 SELECT
     v.Id AS id,
@@ -141,13 +109,13 @@ FROM
     INNER JOIN Visitas v ON bd.VisitaID = v.ID
     INNER JOIN Productos p ON p.ID = bd.ProductoID
     INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
-    LEFT JOIN ObservacionesUnicas o ON o.DetalleCuentaID = bd.DetalleCuentaID AND o.RN = 1
-    LEFT JOIN MesasUnicas m ON m.ID = v.MesaID AND m.RN = 1
-    LEFT JOIN TipoEnviosUnicos te ON te.TipoEnvioID = v.TipoEnvioID AND te.RN = 1
-    LEFT JOIN ParaLlevarUnicos pl ON pl.ParaLlevarID = v.ParaLlevarID AND pl.RN = 1
+    LEFT JOIN Observaciones o ON o.DetalleCuentaID = bd.DetalleCuentaID
+    LEFT JOIN Mesas m ON m.ID = v.MesaID
+    LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
+    LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
     ${despachoStr}
 WHERE
-    tv.RN <= ${limit}   
+    tv.RN <= ${limit}
 ORDER BY
     bd.Orden,
     v.Id,
@@ -155,7 +123,7 @@ ORDER BY
     p.Nombre;
 `;
 
-   // console.log('Query:', query1)
+    //console.log('Query:', query1)
     const pool = await poolPromise
     const result = await pool.request().query(query1)
    // console.log('Result:', result)
