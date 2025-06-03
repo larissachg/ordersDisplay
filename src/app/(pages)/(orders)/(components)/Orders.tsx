@@ -6,17 +6,37 @@ import { Card, CardContent, CardHeader } from '../../../../components/ui/card'
 import { Button } from '../../../../components/ui/button'
 import { toast } from 'sonner'
 import { redirect } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Orden } from '@/interfaces/Orden'
 import TimerComponent from '../../../../components/TimerComponent'
 import useSound from 'use-sound'
 import { OrderDetailDialog } from '@/components/OrderDetailDialog'
+import Image from 'next/image'
+import { LockClosedIcon } from '@radix-ui/react-icons'
 
 const themeColors = {
   primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
   secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
   done: process.env.NEXT_PUBLIC_DONE_COLOR
 }
+
+const colorPalette = [
+  '#3B82F6', // Azul
+  '#8B5CF6', // Violeta
+  '#6B7280', // Gris
+  '#6366F1', // Indigo
+  '#EC4899', // Rosa
+  '#F97316', // Naranja
+  '#14B8A6', // Verde Azulado
+  '#A855F7', // Púrpura
+  '#F43F5E', // Rosa Intenso
+  '#22C55E', // Verde Claro
+  '#0EA5E9', // Azul Claro
+  '#DB2777', // Fucsia
+  '#EC4899', // Rosa Medio
+  '#F87171', // Rosa Claro
+  '#34D399' // Verde Menta
+]
 
 export const OrdersPage = () => {
   const [ordenes, setOrdenes] = useState<Orden[]>([])
@@ -25,7 +45,10 @@ export const OrdersPage = () => {
   const [conDesglose, setconDesglose] = useState('1')
   const [columns, setColumns] = useState('3')
   const [rows, setRows] = useState('3')
+  const [enableSnooze, setEnableSnooze] = useState('1')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const [snoozedOrders, setSnoozedOrders] = useState<string[]>([])
 
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [activeOrder, setActiveOrder] = useState<{
@@ -58,6 +81,12 @@ export const OrdersPage = () => {
       }
 
       setOrdenes(data)
+      const currentOrderIds = data.map(
+        (orden: Orden) => `${orden.id}-${orden.orden}`
+      )
+      setSnoozedOrders((prev) =>
+        prev.filter((id) => currentOrderIds.includes(id))
+      )
     } catch (error) {
       console.error(error)
       setErrorMessage('No se pudo conectar a la base de datos')
@@ -67,28 +96,54 @@ export const OrdersPage = () => {
   }, [nombreEquipo, ordenes.length, playNewOrder, maxOrders])
 
   useEffect(() => {
-    const equipo = localStorage.getItem('equipo') ?? ''
-    const conDesglose = localStorage.getItem('conDesglose') ?? '1'
-    const storedColumns = localStorage.getItem('columns') ?? '3'
-    const storedRows = localStorage.getItem('rows') ?? '3'
-    if (equipo.length === 0) {
-      redirect('/config')
-    }
+    if (typeof window !== 'undefined') {
+      const equipo = localStorage.getItem('equipo') ?? ''
+      const conDesglose = localStorage.getItem('conDesglose') ?? '1'
+      const storedColumns = localStorage.getItem('columns') ?? '3'
+      const storedRows = localStorage.getItem('rows') ?? '3'
+      const storedEnableSnooze = localStorage.getItem('enableSnooze') ?? '1'
+      const savedSnoozedOrders = localStorage.getItem('snoozedOrders')
 
-    setNombreEquipo(equipo)
-    setconDesglose(conDesglose)
-    setColumns(storedColumns)
-    setRows(storedRows)
+      if (equipo.length === 0) {
+        redirect('/config')
+      }
 
-    getOrdenes()
+      setNombreEquipo(equipo)
+      setconDesglose(conDesglose)
+      setColumns(storedColumns)
+      setRows(storedRows)
+      setEnableSnooze(storedEnableSnooze)
+      if (savedSnoozedOrders) {
+        setSnoozedOrders(JSON.parse(savedSnoozedOrders))
+      }
 
-    const interval = setInterval(() => {
-      console.log('Actualizando órdenes...')
       getOrdenes()
-    }, 15000)
 
-    return () => clearInterval(interval)
+      const interval = setInterval(() => {
+        console.log('Actualizando órdenes...')
+        getOrdenes()
+      }, 15000)
+
+      return () => clearInterval(interval)
+    }
   }, [getOrdenes])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log({ snoozedOrders })
+      if (snoozedOrders.length === 0) {
+        localStorage.removeItem('snoozedOrders')
+      } else {
+        localStorage.setItem('snoozedOrders', JSON.stringify(snoozedOrders))
+      }
+    }
+  }, [snoozedOrders])
+
+  useEffect(() => {
+    if (enableSnooze === '0' && snoozedOrders.length > 0) {
+      setSnoozedOrders([])
+    }
+  }, [enableSnooze, snoozedOrders])
 
   const actualizarItem = async (
     detalleCuentaId: number,
@@ -187,44 +242,52 @@ export const OrdersPage = () => {
     }
   }
 
-  const colorPalette = [
-    '#3B82F6', // Azul
-    '#8B5CF6', // Violeta
-    '#6B7280', // Gris
-    '#6366F1', // Indigo
-    '#EC4899', // Rosa
-    '#F97316', // Naranja
-    '#14B8A6', // Verde Azulado
-    '#A855F7', // Púrpura
-    '#F43F5E', // Rosa Intenso
-    '#22C55E', // Verde Claro
-    '#0EA5E9', // Azul Claro
-    '#DB2777', // Fucsia
-    '#EC4899', // Rosa Medio
-    '#F87171', // Rosa Claro
-    '#34D399' // Verde Menta
-  ]
+  const getColorForTipoEnvio = useCallback(
+    (tipoEnvio: string | null, colorDefault: string) => {
+      if (!tipoEnvio) return colorDefault // Color por defecto (Gris) '#6B7280'
 
-  const getColorForTipoEnvio = (
-    tipoEnvio: string | null,
-    colorDefault: string
-  ) => {
-    if (!tipoEnvio) return colorDefault // Color por defecto (Gris) '#6B7280'
+      if (tipoEnvio.toLowerCase() === 'pedidos ya') return '#EF4444' // Rojo
+      if (tipoEnvio.toLowerCase() === 'whatsapp') return '#10B981' // Verde
+      if (tipoEnvio.toLowerCase() === 'restomenu') return '#F59E0B' // Amarillo
+      // Crear un hash simple a partir del tipoEnvio
+      let hash = 0
+      for (let i = 0; i < tipoEnvio.length; i++) {
+        hash = tipoEnvio.charCodeAt(i) + ((hash << 5) - hash)
+        hash = hash & hash // Convertir a entero de 32 bits
+      }
 
-    if (tipoEnvio.toLowerCase() === 'pedidos ya') return '#EF4444' // Rojo
-    if (tipoEnvio.toLowerCase() === 'whatsapp') return '#10B981' // Verde
-    if (tipoEnvio.toLowerCase() === 'restomenu') return '#F59E0B' // Amarillo
-    // Crear un hash simple a partir del tipoEnvio
-    let hash = 0
-    for (let i = 0; i < tipoEnvio.length; i++) {
-      hash = tipoEnvio.charCodeAt(i) + ((hash << 5) - hash)
-      hash = hash & hash // Convertir a entero de 32 bits
-    }
+      // Obtener el índice del color en la paleta
+      const index = Math.abs(hash) % colorPalette.length
+      return colorPalette[index]
+    },
+    []
+  )
 
-    // Obtener el índice del color en la paleta
-    const index = Math.abs(hash) % colorPalette.length
-    return colorPalette[index]
-  }
+  const sortedOrders = useMemo(() => {
+    if (snoozedOrders.length === 0 || enableSnooze === '0') return ordenes
+
+    return [...ordenes].sort((a, b) => {
+      const aSnoozed = snoozedOrders.includes(`${a.id}-${a.orden}`)
+      const bSnoozed = snoozedOrders.includes(`${b.id}-${b.orden}`)
+      if (aSnoozed && !bSnoozed) return 1
+      if (!aSnoozed && bSnoozed) return -1
+      return 0
+    })
+  }, [enableSnooze, ordenes, snoozedOrders])
+
+  const handleSnooze = useCallback((orderId: string) => {
+    setSnoozedOrders((prev) => [...prev, orderId])
+    toast.success('Pedido enviado al final de la cola', {
+      position: 'bottom-center'
+    })
+  }, [])
+
+  const handleUnsnooze = useCallback((orderId: string) => {
+    setSnoozedOrders((prev) => prev.filter((id) => id !== orderId))
+    toast.success('Pedido restaurado a su posición original', {
+      position: 'bottom-center'
+    })
+  }, [])
 
   if (loading) {
     return (
@@ -268,7 +331,7 @@ export const OrdersPage = () => {
           className='flex w-auto gap-3 mt-1 px-1 break-inside-avoid'
           columnClassName='masonry-column'
         >
-          {ordenes.map((orden, index) => (
+          {sortedOrders.map((orden, index) => (
             <Card
               key={`${orden.id}${orden.orden}`}
               className={`relative mb-3 break-inside-avoid overflow-hidden shadow-xl ${
@@ -324,7 +387,45 @@ export const OrdersPage = () => {
                     </div>
                   </div>
 
-                  <TimerComponent startTime={orden.hora.replace('Z', '')} />
+                  <div className='flex items-center gap-2'>
+                    {enableSnooze === '1' && (
+                      <>
+                        {snoozedOrders.includes(
+                          `${orden.id}-${orden.orden}`
+                        ) ? (
+                          <Button
+                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
+                            variant='outline'
+                            title='Restaurar pedido'
+                            onClick={() =>
+                              handleUnsnooze(`${orden.id}-${orden.orden}`)
+                            }
+                          >
+                            <LockClosedIcon className='!w-[20px] !h-[20px] ' />
+                          </Button>
+                        ) : (
+                          <Button
+                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
+                            variant='outline'
+                            title='Enviar al final de la cola'
+                            onClick={() =>
+                              handleSnooze(`${orden.id}-${orden.orden}`)
+                            }
+                          >
+                            <Image
+                              src='/images/snooze.png'
+                              width={20}
+                              height={20}
+                              alt='Snooze'
+                              className='w-[20px] h-[20px]'
+                              style={{ filter: 'brightness(1) invert(0)' }}
+                            />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    <TimerComponent startTime={orden.hora.replace('Z', '')} />
+                  </div>
                 </div>
               </CardHeader>
 

@@ -31,6 +31,7 @@ export const FormConfig = () => {
   const [conDesglose, setconDesglose] = useState('1')
   const [columns, setColumns] = useState('3')
   const [rows, setRows] = useState('3')
+  const [enableSnooze, setEnableSnooze] = useState('1')
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -51,6 +52,7 @@ export const FormConfig = () => {
       setconDesglose(localStorage.getItem('conDesglose') || '1')
       setColumns(localStorage.getItem('columns') || '3')
       setRows(localStorage.getItem('rows') || '3')
+      setEnableSnooze(localStorage.getItem('enableSnooze') || '1')
       setIsLoaded(true)
     } catch (error) {
       console.error(error)
@@ -82,6 +84,7 @@ export const FormConfig = () => {
     localStorage.setItem('rows', rows)
     localStorage.setItem('equipo', nombreEquipo)
     localStorage.setItem('conDesglose', conDesglose)
+    localStorage.setItem('enableSnooze', enableSnooze)
 
     toast(`Equipo registrado exitosamente, ${nombreEquipo}`, {
       style: {
@@ -143,6 +146,15 @@ export const FormConfig = () => {
                 onCheckedChange={(value) => {
                   console.log('Checkbox clicado, valor:', value)
                   setconDesglose(value ? '1' : '0')
+                }}
+              />
+
+              <Label htmlFor='enableSnooze'>Orden en espera:</Label>
+              <Checkbox
+                id='enableSnooze'
+                checked={enableSnooze === '1'}
+                onCheckedChange={(value) => {
+                  setEnableSnooze(value ? '1' : '0')
                 }}
               />
 
