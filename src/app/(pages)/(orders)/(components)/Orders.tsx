@@ -373,36 +373,36 @@ export const OrdersPage = () => {
 
                   <div className='flex items-center gap-2'>
                     {enableSnooze === '1' && (
-                      <>
+                        <>                  
                         {+orden.newOrder !== +orden.orden ? (
                           <Button
-                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
-                            variant='outline'
-                            title='Restaurar pedido'
-                            onClick={() =>
-                              handleUnsnooze(orden.id, orden.orden)
-                            }
+                          className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
+                          variant='outline'
+                          title='Restaurar pedido'
+                          onClick={() =>
+                            handleUnsnooze(orden.id, orden.orden)
+                          }
                           >
-                            <LockClosedIcon className='!w-[20px] !h-[20px] ' />
+                          <LockClosedIcon className='!w-[20px] !h-[20px] ' />
                           </Button>
                         ) : (
                           <Button
-                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
-                            variant='outline'
-                            title='Enviar al final de la cola'
-                            onClick={() => handleSnooze(orden.id, orden.orden)}
+                          className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
+                          variant='outline'
+                          title='Enviar al final de la cola'
+                          onClick={() => handleSnooze(orden.id, orden.orden)}
                           >
-                            <Image
-                              src='/images/snooze.png'
-                              width={20}
-                              height={20}
-                              alt='Snooze'
-                              className='w-[20px] h-[20px]'
-                              style={{ filter: 'brightness(1) invert(0)' }}
-                            />
+                          <Image
+                            src='/images/snooze.png'
+                            width={20}
+                            height={20}
+                            alt='Snooze'
+                            className='w-[20px] h-[20px]'
+                            style={{ filter: 'brightness(1) invert(0)' }}
+                          />
                           </Button>
                         )}
-                      </>
+                        </>
                     )}
                     <TimerComponent startTime={orden.hora.replace('Z', '')} />
                   </div>

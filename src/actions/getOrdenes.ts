@@ -80,6 +80,9 @@ TopVisitas AS (
     WHERE
         Terminado IS NULL
     GROUP BY VisitaID, Orden
+),
+MaxOrden AS (
+    SELECT MAX(Orden) AS MaxOrden FROM TopVisitas
 )
 SELECT
     v.Id AS id,
@@ -103,7 +106,7 @@ SELECT
      FROM ProductosCombos pc
      INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
      WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
-     bd.Orden + iif(kd.RN is null, 0, ${limit} + kd.RN) as newOrder
+     bd.Orden +  iif(kd.RN is null, 0, COALESCE(mrn.MaxOrden, 0) + kd.RN) as newOrder
 FROM
     BaseData bd
     INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
@@ -114,6 +117,7 @@ FROM
     LEFT JOIN Mesas m ON m.ID = v.MesaID
     LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
     LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    LEFT JOIN MaxOrden mrn ON 1 = 1
     LEFT JOIN (SELECT VisitaID, Orden, ROW_NUMBER() OVER (ORDER BY KDSsnoozeID) AS RN FROM KDS_Snooze) kd ON kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden
     ${despachoStr}
 WHERE
