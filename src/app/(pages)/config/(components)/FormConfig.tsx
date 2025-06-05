@@ -31,7 +31,7 @@ export const FormConfig = () => {
   const [conDesglose, setconDesglose] = useState('1')
   const [columns, setColumns] = useState('3')
   const [rows, setRows] = useState('3')
-  const [enableSnooze, setEnableSnooze] = useState('1')
+  const [enableSnooze, setEnableSnooze] = useState('0')
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -52,7 +52,7 @@ export const FormConfig = () => {
       setconDesglose(localStorage.getItem('conDesglose') || '1')
       setColumns(localStorage.getItem('columns') || '3')
       setRows(localStorage.getItem('rows') || '3')
-      setEnableSnooze(localStorage.getItem('enableSnooze') || '1')
+      setEnableSnooze(localStorage.getItem('enableSnooze') || '0')
       setIsLoaded(true)
     } catch (error) {
       console.error(error)

@@ -13,6 +13,7 @@ export interface OrdenDb {
   productosCombo: string | null;
   detalleCuentaId: number; // Columna 'detalleCuentaId'
   terminado?: null | string;
+  newOrder: number;
 }
 
 export interface Orden {
@@ -24,7 +25,7 @@ export interface Orden {
   orden: number; // Columna 'orden'
   hora: string; // Columna 'hora' (formato ISO string)
   terminado?: null | string;
-
+  newOrder: number;
   productos: Producto[];
 }
 

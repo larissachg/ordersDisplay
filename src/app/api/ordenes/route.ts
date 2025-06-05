@@ -3,6 +3,8 @@ import { getOrdenesDb } from '@/actions/getOrdenes'
 import { Orden, OrdenDb } from '@/interfaces/Orden'
 import { actualizarOrden } from '@/actions/actualizarOrden'
 import { processOrders } from '@/utils/processOrders'
+import { snoozeOrder } from '@/actions/snooze'
+import { unsnoozeOrder } from '@/actions/unsnooze'
 
 // Handler para manejar solicitudes GET
 export async function GET(req: Request) {
@@ -66,6 +68,53 @@ export async function PUT(request: Request) {
     console.error('Error al crear el equipo:', error)
     return NextResponse.json(
       { error: 'Error al crear el equipo' },
+      { status: 500 }
+    )
+  }
+}
+
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const { visitaId, orden } = body
+
+    if (!visitaId || !orden) {
+      return NextResponse.json(
+        { error: 'visitaId y orden son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    await snoozeOrder(visitaId, orden)
+    return NextResponse.json({ message: 'Orden snoozeada exitosamente' }, { status: 201 })
+  } catch (error) {
+    console.error('Error al snooze la orden:', error)
+    return NextResponse.json(
+      { error: 'Error al snooze la orden' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json()
+    const { visitaId, orden } = body
+
+    if (!visitaId || !orden) {
+      return NextResponse.json(
+        { error: 'visitaId y orden son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    await unsnoozeOrder(visitaId, orden)
+    return NextResponse.json({ message: 'Orden unsnoozeada exitosamente' }, { status: 200 })
+  } catch (error) {
+    console.error('Error al unsnooze la orden:', error)
+    return NextResponse.json(
+      { error: 'Error al unsnooze la orden' },
       { status: 500 }
     )
   }

@@ -3,48 +3,48 @@ import { poolPromise } from './db'
 import moment from 'moment-timezone'
 
 export async function getOrdenesDb(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
-  try {
-    const now = moment().tz('America/La_Paz'); // Get time once on server
-    const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-    const startOfTomorrow = now
-      .clone()
-      .add(1, 'day')
-      .startOf('day')
-      .format('YYYY-MM-DD HH:mm:ss');
+    try {
+        const now = moment().tz('America/La_Paz'); // Get time once on server
+        const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const startOfTomorrow = now
+            .clone()
+            .add(1, 'day')
+            .startOf('day')
+            .format('YYYY-MM-DD HH:mm:ss');
 
-      let despachoTopVisitasStr = `
+        let despachoTopVisitasStr = `
     INNER JOIN Visitas v ON v.ID = dc.VisitaID
     LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
     INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
     INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
 `;
 
-let despachoStr = `
+        let despachoStr = `
     INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
     INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
 `;
 
-if (nombreEquipo === 'DespachoToptech') {
-    despachoTopVisitasStr = `
+        if (nombreEquipo === 'DespachoToptech') {
+            despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
     `;
-    despachoStr = '';
-} else if (nombreEquipo === 'DespachoToptechDelivery') {
-    despachoTopVisitasStr = `
+            despachoStr = '';
+        } else if (nombreEquipo === 'DespachoToptechDelivery') {
+            despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
     `;
-    despachoStr = '';
-} else if (nombreEquipo === 'DespachoToptechMesa') {
-    despachoTopVisitasStr = `
+            despachoStr = '';
+        } else if (nombreEquipo === 'DespachoToptechMesa') {
+            despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NOT NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
     `;
-    despachoStr = '';
-}
+            despachoStr = '';
+        }
 
-const query1 = `WITH BaseData AS (
+        const query1 = `WITH BaseData AS (
     SELECT DISTINCT
         dc.VisitaID,
         dc.Orden,
@@ -102,7 +102,8 @@ SELECT
     (SELECT STRING_AGG(p2.Nombre, ',')
      FROM ProductosCombos pc
      INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
-     WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo
+     WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
+     bd.Orden + iif(kd.RN is null, 0, ${limit} + kd.RN) as newOrder
 FROM
     BaseData bd
     INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
@@ -113,24 +114,26 @@ FROM
     LEFT JOIN Mesas m ON m.ID = v.MesaID
     LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
     LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+    LEFT JOIN (SELECT VisitaID, Orden, ROW_NUMBER() OVER (ORDER BY KDSsnoozeID) AS RN FROM KDS_Snooze) kd ON kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden
     ${despachoStr}
 WHERE
     tv.RN <= ${limit}
 ORDER BY
+    newOrder,
     bd.Orden,
     v.Id,
     bd.Hora,
     p.Nombre;
 `;
 
-    //console.log('Query:', query1)
-    const pool = await poolPromise
-    const result = await pool.request().query(query1)
-   // console.log('Result:', result)
+        //console.log('Query:', query1)
+        const pool = await poolPromise
+        const result = await pool.request().query(query1)
+        // console.log('Result:', result)
 
-    return result.recordset as OrdenDb[]
-  } catch (error) {
-    console.error('Error al obtener las órdenes:', error)
-    throw new Error('No se pudieron obtener las órdenes')
-  }
+        return result.recordset as OrdenDb[]
+    } catch (error) {
+        console.error('Error al obtener las órdenes:', error)
+        throw new Error('No se pudieron obtener las órdenes')
+    }
 }

@@ -47,6 +47,7 @@ export const processOrders = (ordenesDb: OrdenDb[]): Orden[] => {
         orden: ordenDb.orden,
         hora: ordenDb.hora,
         productos: productos,
+        newOrder: ordenDb.newOrder
       });
     }
   }

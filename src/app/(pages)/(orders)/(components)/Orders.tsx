@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from '../../../../components/ui/card'
 import { Button } from '../../../../components/ui/button'
 import { toast } from 'sonner'
 import { redirect } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Orden } from '@/interfaces/Orden'
 import TimerComponent from '../../../../components/TimerComponent'
 import useSound from 'use-sound'
@@ -48,8 +48,6 @@ export const OrdersPage = () => {
   const [enableSnooze, setEnableSnooze] = useState('1')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const [snoozedOrders, setSnoozedOrders] = useState<string[]>([])
-
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [activeOrder, setActiveOrder] = useState<{
     orden: number
@@ -79,14 +77,9 @@ export const OrdersPage = () => {
       if (data.length > ordenes.length) {
         playNewOrder()
       }
+      console.log(data)
 
       setOrdenes(data)
-      const currentOrderIds = data.map(
-        (orden: Orden) => `${orden.id}-${orden.orden}`
-      )
-      setSnoozedOrders((prev) =>
-        prev.filter((id) => currentOrderIds.includes(id))
-      )
     } catch (error) {
       console.error(error)
       setErrorMessage('No se pudo conectar a la base de datos')
@@ -102,7 +95,6 @@ export const OrdersPage = () => {
       const storedColumns = localStorage.getItem('columns') ?? '3'
       const storedRows = localStorage.getItem('rows') ?? '3'
       const storedEnableSnooze = localStorage.getItem('enableSnooze') ?? '1'
-      const savedSnoozedOrders = localStorage.getItem('snoozedOrders')
 
       if (equipo.length === 0) {
         redirect('/config')
@@ -113,9 +105,6 @@ export const OrdersPage = () => {
       setColumns(storedColumns)
       setRows(storedRows)
       setEnableSnooze(storedEnableSnooze)
-      if (savedSnoozedOrders) {
-        setSnoozedOrders(JSON.parse(savedSnoozedOrders))
-      }
 
       getOrdenes()
 
@@ -127,23 +116,6 @@ export const OrdersPage = () => {
       return () => clearInterval(interval)
     }
   }, [getOrdenes])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log({ snoozedOrders })
-      if (snoozedOrders.length === 0) {
-        localStorage.removeItem('snoozedOrders')
-      } else {
-        localStorage.setItem('snoozedOrders', JSON.stringify(snoozedOrders))
-      }
-    }
-  }, [snoozedOrders])
-
-  useEffect(() => {
-    if (enableSnooze === '0' && snoozedOrders.length > 0) {
-      setSnoozedOrders([])
-    }
-  }, [enableSnooze, snoozedOrders])
 
   const actualizarItem = async (
     detalleCuentaId: number,
@@ -263,31 +235,43 @@ export const OrdersPage = () => {
     []
   )
 
-  const sortedOrders = useMemo(() => {
-    if (snoozedOrders.length === 0 || enableSnooze === '0') return ordenes
+  const handleSnooze = useCallback(
+    async (visitaId: number, orden: number) => {
+      try {
+        await fetch('/api/ordenes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visitaId, orden, nombreEquipo })
+        })
+        toast.success('Pedido enviado al final de la cola', {
+          position: 'bottom-center'
+        })
+        await getOrdenes()
+      } catch (error) {
+        console.error('Error al snooze la orden:', error)
+      }
+    },
+    [nombreEquipo, getOrdenes]
+  )
 
-    return [...ordenes].sort((a, b) => {
-      const aSnoozed = snoozedOrders.includes(`${a.id}-${a.orden}`)
-      const bSnoozed = snoozedOrders.includes(`${b.id}-${b.orden}`)
-      if (aSnoozed && !bSnoozed) return 1
-      if (!aSnoozed && bSnoozed) return -1
-      return 0
-    })
-  }, [enableSnooze, ordenes, snoozedOrders])
-
-  const handleSnooze = useCallback((orderId: string) => {
-    setSnoozedOrders((prev) => [...prev, orderId])
-    toast.success('Pedido enviado al final de la cola', {
-      position: 'bottom-center'
-    })
-  }, [])
-
-  const handleUnsnooze = useCallback((orderId: string) => {
-    setSnoozedOrders((prev) => prev.filter((id) => id !== orderId))
-    toast.success('Pedido restaurado a su posición original', {
-      position: 'bottom-center'
-    })
-  }, [])
+  const handleUnsnooze = useCallback(
+    async (visitaId: number, orden: number) => {
+      try {
+        await fetch('/api/ordenes', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visitaId, orden })
+        })
+        toast.success('Pedido restaurado a su posición original', {
+          position: 'bottom-center'
+        })
+        await getOrdenes()
+      } catch (error) {
+        console.error('Error al unsnooze la orden:', error)
+      }
+    },
+    [getOrdenes]
+  )
 
   if (loading) {
     return (
@@ -331,7 +315,7 @@ export const OrdersPage = () => {
           className='flex w-auto gap-3 mt-1 px-1 break-inside-avoid'
           columnClassName='masonry-column'
         >
-          {sortedOrders.map((orden, index) => (
+          {ordenes.map((orden, index) => (
             <Card
               key={`${orden.id}${orden.orden}`}
               className={`relative mb-3 break-inside-avoid overflow-hidden shadow-xl ${
@@ -390,15 +374,13 @@ export const OrdersPage = () => {
                   <div className='flex items-center gap-2'>
                     {enableSnooze === '1' && (
                       <>
-                        {snoozedOrders.includes(
-                          `${orden.id}-${orden.orden}`
-                        ) ? (
+                        {+orden.newOrder !== +orden.orden ? (
                           <Button
                             className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
                             variant='outline'
                             title='Restaurar pedido'
                             onClick={() =>
-                              handleUnsnooze(`${orden.id}-${orden.orden}`)
+                              handleUnsnooze(orden.id, orden.orden)
                             }
                           >
                             <LockClosedIcon className='!w-[20px] !h-[20px] ' />
@@ -408,9 +390,7 @@ export const OrdersPage = () => {
                             className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
                             variant='outline'
                             title='Enviar al final de la cola'
-                            onClick={() =>
-                              handleSnooze(`${orden.id}-${orden.orden}`)
-                            }
+                            onClick={() => handleSnooze(orden.id, orden.orden)}
                           >
                             <Image
                               src='/images/snooze.png'
