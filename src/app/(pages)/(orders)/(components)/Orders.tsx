@@ -215,25 +215,33 @@ export const OrdersPage = () => {
   }
 
   const getColorForTipoEnvio = useCallback(
-    (tipoEnvio: string | null, colorDefault: string) => {
-      if (!tipoEnvio) return colorDefault // Color por defecto (Gris) '#6B7280'
+    (tipoEnvio: string | null, colorDefault: string): string => {
+      if (!tipoEnvio || typeof tipoEnvio !== 'string') return colorDefault; // Gris por defecto '#6B7280'
 
-      if (tipoEnvio.toLowerCase() === 'pedidos ya') return '#EF4444' // Rojo
-      if (tipoEnvio.toLowerCase() === 'whatsapp') return '#10B981' // Verde
-      if (tipoEnvio.toLowerCase() === 'restomenu') return '#F59E0B' // Amarillo
-      // Crear un hash simple a partir del tipoEnvio
-      let hash = 0
-      for (let i = 0; i < tipoEnvio.length; i++) {
-        hash = tipoEnvio.charCodeAt(i) + ((hash << 5) - hash)
-        hash = hash & hash // Convertir a entero de 32 bits
+      const normalizedTipoEnvio = tipoEnvio.toLowerCase();
+      const colorMap: Record<string, string> = {
+        'pedidos ya': '#EF4444', // Rojo
+        'whatsapp': '#10B981', // Verde
+        'whatsapp delivery': '#10B981', // Verde
+        'whatsapp recoge': '#308569', // Verde oscuro
+        'restomenu': '#F59E0B', // Amarillo
+        'yango': '#C539F7', // Morado
+      };
+
+      if (colorMap[normalizedTipoEnvio]) return colorMap[normalizedTipoEnvio];
+
+      // Generar color dinámico mediante hash
+      let hash = 0;
+      for (let i = 0; i < normalizedTipoEnvio.length; i++) {
+        hash = normalizedTipoEnvio.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash; // Asegurar entero de 32 bits
       }
 
-      // Obtener el índice del color en la paleta
-      const index = Math.abs(hash) % colorPalette.length
-      return colorPalette[index]
+      const index = Math.abs(hash) % colorPalette.length;
+      return colorPalette[index] || colorDefault; // Fallback si colorPalette está vacío
     },
-    []
-  )
+    [] 
+  );
 
   const handleSnooze = useCallback(
     async (visitaId: number, orden: number) => {
