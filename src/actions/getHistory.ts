@@ -13,17 +13,17 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
         .format('YYYY-MM-DD HH:mm:ss');
   
 
-    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = Productos.TipoProductoID 
+    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = p.TipoProductoID 
       INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
     let whereStr = ''
     if (nombreEquipo === 'DespachoToptech') {
       despachoStr = ''
     } else if (nombreEquipo === 'DespachoToptechDelivery') {
       despachoStr = ''
-      whereStr = ' and Visitas.MesaID is null'
+      whereStr = ' and v.MesaID is null'
     } else if (nombreEquipo === 'DespachoToptechMesa') {
       despachoStr = ''
-      whereStr = ' and Visitas.MesaID is not null'
+      whereStr = ' and v.MesaID is not null'
     }
 
 
@@ -67,45 +67,62 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
     //  `
 
       const query1 =`
-      WITH FilteredDetalleCuenta AS (
-        SELECT ID, VisitaID, ProductoID, TomoPedidoMeseroID, Orden, Cantidad, Hora, Borrada, Terminado
-        FROM DetalleCuenta
-        WHERE Terminado IS NOT NULL
-        ),
-        ProductosCombo AS (
-          SELECT DetalleCuentaID, STRING_AGG(P2.Nombre, ',') AS productosCombo
-          FROM ProductosCombos
-          INNER JOIN Productos AS P2 ON P2.ID = ProductosCombos.ProductoID
-          GROUP BY DetalleCuentaID
-        )
-        SELECT
-          Visitas.Id AS id,
-          COALESCE(NULLIF(TRIM(Visitas.Identificador), ''), Mesas.Nombre) AS mesa,
-          Meseros.Nombre AS mesero,
-          TipoEnvios.Nombre AS tipoEnvio,
-          ParaLlevar.Nombre AS paraLlevar,
-          Productos.Nombre AS producto,
-          DetalleCuenta.Orden AS orden,
-          DetalleCuenta.Cantidad AS cantidad,
-          CAST(DetalleCuenta.Hora AS DATETIME) AS hora,
-          DetalleCuenta.Borrada AS borrada,
-          Observaciones.Observacion AS observacion,
-          PC.productosCombo
-        FROM FilteredDetalleCuenta AS DetalleCuenta
-        INNER JOIN Visitas ON DetalleCuenta.VisitaID = Visitas.ID
-        INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID
-        INNER JOIN Meseros ON Meseros.MeseroID = DetalleCuenta.TomoPedidoMeseroID
-        LEFT JOIN Observaciones ON Observaciones.DetalleCuentaID = DetalleCuenta.ID
-        LEFT JOIN Mesas ON Mesas.ID = Visitas.MesaID
-        LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID
-        LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID
-        ${despachoStr}   
-        LEFT JOIN ProductosCombo PC ON PC.DetalleCuentaID = DetalleCuenta.ID
-        WHERE (
-            (ParaLlevar.HoraRecoger IS NULL AND DetalleCuenta.Hora between '${startOfToday}' and '${startOfTomorrow}')
-            OR (ParaLlevar.HoraRecoger IS NOT NULL AND ParaLlevar.HoraRecoger BETWEEN '${startOfToday}' and '${startOfTomorrow}')
-        ) ${whereStr}   
-        ORDER BY DetalleCuenta.Orden DESC, Visitas.Id DESC, DetalleCuenta.Hora, Productos.Nombre;
+      WITH BaseData AS (
+          SELECT
+              dc.VisitaID,
+              dc.Orden,
+              dc.ID AS DetalleCuentaID,
+              dc.Cantidad,
+              dc.Hora,
+              dc.Borrada,
+              dc.Terminado,
+              dc.TomoPedidoMeseroID,
+              dc.ProductoID,
+              COALESCE(pl.HoraRecoger, dc.Hora) AS HoraEfectiva,
+              v.Identificador,
+              v.MesaID,
+              v.TipoEnvioID,
+              v.ParaLlevarID,
+              p.TipoProductoID
+          FROM DetalleCuenta dc
+          INNER JOIN Productos p ON p.ID = dc.ProductoID
+          INNER JOIN Visitas v ON v.ID = dc.VisitaID
+          LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+          ${despachoStr}    
+          WHERE COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' and '${startOfTomorrow}'
+            AND dc.Borrada = 0 ${whereStr} 
+      )
+      SELECT
+          v.ID AS id,
+          COALESCE(
+              NULLIF(LTRIM(RTRIM(v.Identificador)), ''),
+              m.Nombre,
+              CASE WHEN RIGHT(v.Identificador, 2) = '|0' THEN LEFT(v.Identificador, LEN(v.Identificador) - 2) ELSE v.Identificador END
+          ) AS mesa,
+          mes.Nombre AS mesero,
+          te.Nombre AS tipoEnvio,
+          pl.Nombre AS paraLlevar,
+          p.Nombre AS producto,
+          bd.orden,
+          bd.cantidad,
+          bd.DetalleCuentaID,
+          CAST(bd.Hora AS DATETIME) AS hora,
+          bd.borrada,
+          o.observacion,
+          bd.terminado,
+          (SELECT STRING_AGG(p2.Nombre, ',')
+          FROM ProductosCombos pc
+          INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
+          WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo
+      FROM BaseData bd    
+      INNER JOIN Visitas v ON bd.VisitaID = v.ID
+      INNER JOIN Productos p ON p.ID = bd.ProductoID
+      INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
+      LEFT JOIN Observaciones o ON o.DetalleCuentaID = bd.DetalleCuentaID
+      LEFT JOIN Mesas m ON m.ID = v.MesaID
+      LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
+      LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+      ORDER BY bd.Orden DESC, v.ID DESC, bd.Hora, p.Nombre;
       `
     //console.log('Query:', query1)
     const pool = await poolPromise
