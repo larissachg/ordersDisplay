@@ -11,6 +11,7 @@ export async function getEquiposDb(): Promise<Equipo[]> {
       UNION select 'Despacho Todo', 'DespachoToptech'
       UNION select 'Despacho Delivery', 'DespachoToptechDelivery'
       UNION select 'Despacho en Local', 'DespachoToptechMesa'
+      UNION select 'Visor Cliente', 'VisorCliente'
     `)
 
     return result.recordset as Equipo[]
