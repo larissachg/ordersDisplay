@@ -13,11 +13,21 @@ import useSound from 'use-sound'
 import { OrderDetailDialog } from '@/components/OrderDetailDialog'
 import Image from 'next/image'
 import { LockClosedIcon } from '@radix-ui/react-icons'
+import { SnoozeType } from '@/contants/snoozeType'
+import { Badge } from '../../../../components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '../../../../components/ui/dialog'
+import SnoozedOrdersList from './SnoozedOrdersList'
 
 const themeColors = {
-  primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR,
-  secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR,
-  done: process.env.NEXT_PUBLIC_DONE_COLOR
+  primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR ?? '626e78',
+  secondaryBg: process.env.NEXT_PUBLIC_SECONDARY_COLOR ?? '626e7845',
+  done: process.env.NEXT_PUBLIC_DONE_COLOR ?? 'a0bd93'
 }
 
 const colorPalette = [
@@ -40,15 +50,19 @@ const colorPalette = [
 
 export const OrdersPage = () => {
   const [ordenes, setOrdenes] = useState<Orden[]>([])
+  const [snoozedOrdenes, setSnoozedOrdenes] = useState<Orden[]>([])
   const [loading, setLoading] = useState(true)
   const [nombreEquipo, setNombreEquipo] = useState('')
   const [conDesglose, setconDesglose] = useState('1')
   const [columns, setColumns] = useState('3')
   const [rows, setRows] = useState('3')
   const [enableSnooze, setEnableSnooze] = useState('1')
+  const [snoozeType, setSnoozeType] = useState<SnoozeType>(SnoozeType.separado)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [snoozedModalOpen, setSnoozedModalOpen] = useState(false)
+
   const [activeOrder, setActiveOrder] = useState<{
     orden: number
     detalle: string
@@ -64,7 +78,7 @@ export const OrdersPage = () => {
       const resp = await fetch(
         `/api/ordenes?equipo=${encodeURIComponent(
           nombreEquipo
-        )}&limit=${maxOrders}`,
+        )}&limit=${maxOrders}&snoozeType=${snoozeType}`,
         {
           method: 'GET'
         }
@@ -74,19 +88,34 @@ export const OrdersPage = () => {
       }
       const data = await resp.json()
 
-      if (data.length > ordenes.length) {
-        playNewOrder()
+      if (snoozeType === SnoozeType.separado) {
+        setOrdenes(data.mainOrders || [])
+        setSnoozedOrdenes(data.snoozedOrders || [])
+        if (
+          (data.mainOrders?.length || 0) + (data.snoozedOrders?.length || 0) >
+          ordenes.length + snoozedOrdenes.length
+        ) {
+          playNewOrder()
+        }
+      } else {
+        setOrdenes(data)
+        setSnoozedOrdenes([])
+        if (data.length > ordenes.length) playNewOrder()
       }
-      console.log(data)
-
-      setOrdenes(data)
     } catch (error) {
       console.error(error)
       setErrorMessage('No se pudo conectar a la base de datos')
     } finally {
       setLoading(false)
     }
-  }, [nombreEquipo, ordenes.length, playNewOrder, maxOrders])
+  }, [
+    nombreEquipo,
+    maxOrders,
+    snoozeType,
+    ordenes.length,
+    snoozedOrdenes.length,
+    playNewOrder
+  ])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -95,6 +124,8 @@ export const OrdersPage = () => {
       const storedColumns = localStorage.getItem('columns') ?? '3'
       const storedRows = localStorage.getItem('rows') ?? '3'
       const storedEnableSnooze = localStorage.getItem('enableSnooze') ?? '1'
+      const storedSnoozeType = (localStorage.getItem('snoozeType') ??
+        SnoozeType.separado) as SnoozeType
 
       if (equipo.length === 0) {
         redirect('/config')
@@ -105,6 +136,7 @@ export const OrdersPage = () => {
       setColumns(storedColumns)
       setRows(storedRows)
       setEnableSnooze(storedEnableSnooze)
+      setSnoozeType(storedSnoozeType)
 
       getOrdenes()
 
@@ -216,32 +248,32 @@ export const OrdersPage = () => {
 
   const getColorForTipoEnvio = useCallback(
     (tipoEnvio: string | null, colorDefault: string): string => {
-      if (!tipoEnvio || typeof tipoEnvio !== 'string') return colorDefault; // Gris por defecto '#6B7280'
+      if (!tipoEnvio || typeof tipoEnvio !== 'string') return colorDefault // Gris por defecto '#6B7280'
 
-      const normalizedTipoEnvio = tipoEnvio.toLowerCase();
+      const normalizedTipoEnvio = tipoEnvio.toLowerCase()
       const colorMap: Record<string, string> = {
         'pedidos ya': '#EF4444', // Rojo
-        'whatsapp': '#10B981', // Verde
+        whatsapp: '#10B981', // Verde
         'whatsapp delivery': '#10B981', // Verde
         'whatsapp recoge': '#308569', // Verde oscuro
-        'restomenu': '#F59E0B', // Amarillo
-        'yango': '#C539F7', // Morado
-      };
-
-      if (colorMap[normalizedTipoEnvio]) return colorMap[normalizedTipoEnvio];
-
-      // Generar color dinámico mediante hash
-      let hash = 0;
-      for (let i = 0; i < normalizedTipoEnvio.length; i++) {
-        hash = normalizedTipoEnvio.charCodeAt(i) + ((hash << 5) - hash);
-        hash = hash & hash; // Asegurar entero de 32 bits
+        restomenu: '#F59E0B', // Amarillo
+        yango: '#C539F7' // Morado
       }
 
-      const index = Math.abs(hash) % colorPalette.length;
-      return colorPalette[index] || colorDefault; // Fallback si colorPalette está vacío
+      if (colorMap[normalizedTipoEnvio]) return colorMap[normalizedTipoEnvio]
+
+      // Generar color dinámico mediante hash
+      let hash = 0
+      for (let i = 0; i < normalizedTipoEnvio.length; i++) {
+        hash = normalizedTipoEnvio.charCodeAt(i) + ((hash << 5) - hash)
+        hash = hash & hash // Asegurar entero de 32 bits
+      }
+
+      const index = Math.abs(hash) % colorPalette.length
+      return colorPalette[index] || colorDefault // Fallback si colorPalette está vacío
     },
-    [] 
-  );
+    []
+  )
 
   const handleSnooze = useCallback(
     async (visitaId: number, orden: number) => {
@@ -255,6 +287,7 @@ export const OrdersPage = () => {
           position: 'bottom-center'
         })
         await getOrdenes()
+        setSnoozedModalOpen(false)
       } catch (error) {
         console.error('Error al snooze la orden:', error)
       }
@@ -381,36 +414,36 @@ export const OrdersPage = () => {
 
                   <div className='flex items-center gap-2'>
                     {enableSnooze === '1' && (
-                        <>                  
+                      <>
                         {+orden.newOrder !== +orden.orden ? (
                           <Button
-                          className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
-                          variant='outline'
-                          title='Restaurar pedido'
-                          onClick={() =>
-                            handleUnsnooze(orden.id, orden.orden)
-                          }
+                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#be7373] hover:opacity-75 hover:bg-[#e48a8a]'
+                            variant='outline'
+                            title='Restaurar pedido'
+                            onClick={() =>
+                              handleUnsnooze(orden.id, orden.orden)
+                            }
                           >
-                          <LockClosedIcon className='!w-[20px] !h-[20px] ' />
+                            <LockClosedIcon className='!w-[20px] !h-[20px] ' />
                           </Button>
                         ) : (
                           <Button
-                          className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
-                          variant='outline'
-                          title='Enviar al final de la cola'
-                          onClick={() => handleSnooze(orden.id, orden.orden)}
+                            className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0 bg-[#2c3236] hover:opacity-75 hover:bg-[#2c3236]'
+                            variant='outline'
+                            title='Enviar al final de la cola'
+                            onClick={() => handleSnooze(orden.id, orden.orden)}
                           >
-                          <Image
-                            src='/images/snooze.png'
-                            width={20}
-                            height={20}
-                            alt='Snooze'
-                            className='w-[20px] h-[20px]'
-                            style={{ filter: 'brightness(1) invert(0)' }}
-                          />
+                            <Image
+                              src='/images/snooze.png'
+                              width={20}
+                              height={20}
+                              alt='Snooze'
+                              className='w-[20px] h-[20px]'
+                              style={{ filter: 'brightness(1) invert(0)' }}
+                            />
                           </Button>
                         )}
-                        </>
+                      </>
                     )}
                     <TimerComponent startTime={orden.hora.replace('Z', '')} />
                   </div>
@@ -520,6 +553,53 @@ export const OrdersPage = () => {
             </Card>
           ))}
         </Masonry>
+      )}
+
+      {snoozeType === SnoozeType.separado && snoozedOrdenes.length > 0 && (
+        <Dialog open={snoozedModalOpen} onOpenChange={setSnoozedModalOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className='fixed bottom-4 right-4 rounded-full w-[60px] h-[60px] text-white shadow-xl flex items-center justify-center'
+              style={{ backgroundColor: '#be7373' }}
+              variant='default'
+            >
+              <Image
+                src='/images/snooze.png'
+                width={24}
+                height={24}
+                alt='Snoozed'
+                className='w-[24px] h-[24px]'
+                style={{ filter: 'brightness(1) invert(0)' }}
+              />
+              <Badge
+                variant='secondary'
+                className='absolute -top-1 -right-1 bg-red-500 text-white font-extrabold rounded-full px-2 py-1 text-xs'
+              >
+                {snoozedOrdenes.length}
+              </Badge>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className='max-w-full h-full p-0'>
+            <DialogHeader className='p-4 border-b'>
+              <DialogTitle>
+                Órdenes Dormidas ({snoozedOrdenes.length})
+              </DialogTitle>
+            </DialogHeader>
+            <SnoozedOrdersList
+              snoozedOrdenes={snoozedOrdenes}
+              nombreEquipo={nombreEquipo}
+              conDesglose={conDesglose}
+              themeColors={themeColors}
+              getColorForTipoEnvio={getColorForTipoEnvio}
+              handleUnsnooze={handleUnsnooze}
+              enableSnooze={enableSnooze}
+              playDone={playDone}
+              actualizarItem={actualizarItem}
+              actualizarOrden={actualizarOrden}
+              mostrarDetallesOrden={mostrarDetallesOrden}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       <OrderDetailDialog

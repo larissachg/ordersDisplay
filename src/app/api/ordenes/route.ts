@@ -1,23 +1,28 @@
 import { NextResponse } from 'next/server'
 import { getOrdenesDb } from '@/actions/getOrdenes'
-import { Orden, OrdenDb } from '@/interfaces/Orden'
 import { actualizarOrden } from '@/actions/actualizarOrden'
 import { processOrders } from '@/utils/processOrders'
 import { snoozeOrder } from '@/actions/snooze'
 import { unsnoozeOrder } from '@/actions/unsnooze'
+import { SnoozeType } from '@/contants/snoozeType'
 
-// Handler para manejar solicitudes GET
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const equipo = searchParams.get('equipo') ?? ''
     const limit = searchParams.get("limit") ?? 9;
+    const snoozeType = (searchParams.get('snoozeType') ?? SnoozeType.enCola) as SnoozeType;
 
-    const ordenesDb: OrdenDb[] = await getOrdenesDb(equipo, +limit)
+    const ordenesDb = await getOrdenesDb(equipo, +limit, snoozeType);
 
-    const ordenes: Orden[] = processOrders(ordenesDb)
-
-    return NextResponse.json(ordenes, { status: 200 })
+    if (snoozeType === SnoozeType.separado) {
+      const mainOrders = processOrders(ordenesDb.main || []);
+      const snoozedOrders = processOrders(ordenesDb.snoozed || []);
+      return NextResponse.json({ mainOrders, snoozedOrders }, { status: 200 });
+    } else {
+      const orders = processOrders(ordenesDb.main || []);
+      return NextResponse.json(orders, { status: 200 });
+    }
   } catch (error) {
     console.error('Error al obtener las ordenes:', error)
     return NextResponse.json(

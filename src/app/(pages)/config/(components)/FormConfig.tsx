@@ -21,6 +21,8 @@ import { Equipo } from '@/interfaces/Equipo'
 import { redirect } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { Separator } from '@/components/ui/separator'
+import { SnoozeType } from '@/contants/snoozeType'
 
 const themeColors = {
   primary: process.env.NEXT_PUBLIC_PRIMARY_COLOR
@@ -32,17 +34,16 @@ export const FormConfig = () => {
   const [columns, setColumns] = useState('3')
   const [rows, setRows] = useState('3')
   const [enableSnooze, setEnableSnooze] = useState('0')
+  const [snoozeType, setSnoozeType] = useState<SnoozeType>(SnoozeType.separado)
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
-
-  //const router = useRouter();
 
   const getEquipos = useCallback(async () => {
     try {
       const resp = await fetch('/api/equipos', { method: 'GET' })
       if (!resp.ok) {
         throw new Error(
-          'Error al obtener los equipos, porfavor revisa la conexion a tu base de datos'
+          'Error al obtener los equipos, por favor revisa la conexión a tu base de datos'
         )
       }
       const data = await resp.json()
@@ -53,11 +54,15 @@ export const FormConfig = () => {
       setColumns(localStorage.getItem('columns') || '3')
       setRows(localStorage.getItem('rows') || '3')
       setEnableSnooze(localStorage.getItem('enableSnooze') || '0')
+      setSnoozeType(
+        (localStorage.getItem('snoozeType') as SnoozeType) ||
+          SnoozeType.separado
+      )
       setIsLoaded(true)
     } catch (error) {
       console.error(error)
     }
-  }, []) //[router]
+  }, [])
 
   useEffect(() => {
     getEquipos()
@@ -85,6 +90,7 @@ export const FormConfig = () => {
     localStorage.setItem('equipo', nombreEquipo)
     localStorage.setItem('conDesglose', conDesglose)
     localStorage.setItem('enableSnooze', enableSnooze)
+    localStorage.setItem('snoozeType', snoozeType)
 
     toast(`Equipo registrado exitosamente, ${nombreEquipo}`, {
       style: {
@@ -110,87 +116,118 @@ export const FormConfig = () => {
 
   return (
     <div className='w-full h-[100vh] flex justify-center items-center'>
-      <form>
-        <Card className='min-w-[200px] sm:w-[450px] pt-3 p-4 flex flex-col gap-2'>
-          <CardHeader>
-            <CardTitle>Registro de configuraciones</CardTitle>
-          </CardHeader>
+      <form onSubmit={saveRegister}>
+        <Card className='min-w-[200px] sm:w-[450px] pt-3 p-4 flex flex-col gap-4'>
           <CardContent>
-            <div className='grid w-full items-center gap-4'>
-              <Label htmlFor='name'>Selecciona el equipo:</Label>
+            {/* Configuraciones Generales */}
+            <div className='space-y-4'>
+              <h3 className='text-lg font-semibold'>
+                Configuraciones Generales
+              </h3>
+              <div className='grid w-full items-center gap-4'>
+                <Label htmlFor='name'>Selecciona el equipo:</Label>
+                {isLoaded ? (
+                  <Select onValueChange={setNombreEquipo} value={nombreEquipo}>
+                    <SelectTrigger>
+                      <SelectValue placeholder='Equipo' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equipos.map((equipo) => (
+                        <SelectItem
+                          key={equipo.nombreFisico}
+                          value={equipo.nombreFisico}
+                        >
+                          {equipo.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p>Cargando equipos...</p>
+                )}
 
-              {isLoaded ? (
-                <Select onValueChange={setNombreEquipo} value={nombreEquipo}>
+                <Label htmlFor='desglose'>Con Desglose:</Label>
+                <Checkbox
+                  id='desglose'
+                  checked={conDesglose === '1'}
+                  onCheckedChange={(value) => setconDesglose(value ? '1' : '0')}
+                />
+
+                <Label htmlFor='columns'>Número de columnas (1-5):</Label>
+                <Select onValueChange={setColumns} value={columns}>
                   <SelectTrigger>
-                    <SelectValue placeholder='Equipo' />
+                    <SelectValue placeholder='Columnas' />
                   </SelectTrigger>
                   <SelectContent>
-                    {equipos.map((equipo) => (
-                      <SelectItem
-                        key={equipo.nombreFisico}
-                        value={equipo.nombreFisico}
-                      >
-                        {equipo.nombre}
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <p>Cargando equipos...</p>
-              )}
 
-              <Label htmlFor='desglose'>Con Desglose:</Label>
-              <Checkbox
-                id='desglose'
-                checked={conDesglose === '1'}
-                onCheckedChange={(value) => {
-                  console.log('Checkbox clicado, valor:', value)
-                  setconDesglose(value ? '1' : '0')
-                }}
-              />
+                <Label htmlFor='rows'>Número de filas (mínimo 3):</Label>
+                <Select onValueChange={setRows} value={rows}>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Filas' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-              <Label htmlFor='enableSnooze'>Orden en espera:</Label>
-              <Checkbox
-                id='enableSnooze'
-                checked={enableSnooze === '1'}
-                onCheckedChange={(value) => {
-                  setEnableSnooze(value ? '1' : '0')
-                }}
-              />
+            {/* Separador */}
+            <Separator className='my-4' />
 
-              <Label htmlFor='columns'>Número de columnas (1-5):</Label>
-              <Select onValueChange={setColumns} value={columns}>
-                <SelectTrigger>
-                  <SelectValue placeholder='Columnas' />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <SelectItem key={num} value={num.toString()}>
-                      {num}
+            {/* Órdenes en Espera */}
+            <div className='space-y-4'>
+              <h3 className='text-lg font-semibold'>Órdenes en Espera</h3>
+              <div className='grid w-full items-center gap-4'>
+                <Label htmlFor='enableSnooze'>
+                  Habilitar órdenes en espera:
+                </Label>
+                <Checkbox
+                  id='enableSnooze'
+                  checked={enableSnooze === '1'}
+                  onCheckedChange={(value) =>
+                    setEnableSnooze(value ? '1' : '0')
+                  }
+                />
+
+                <Label htmlFor='snoozeType'>
+                  Tipo de manejo de órdenes en espera:
+                </Label>
+                <Select
+                  onValueChange={(value: string) =>
+                    setSnoozeType(value as SnoozeType)
+                  }
+                  value={snoozeType}
+                  defaultValue={SnoozeType.separado}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Tipo de Snooze' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SnoozeType.separado}>
+                      Separado
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Label htmlFor='rows'>Número de filas (mínimo 3):</Label>
-              <Select onValueChange={setRows} value={rows}>
-                <SelectTrigger>
-                  <SelectValue placeholder='Filas' />
-                </SelectTrigger>
-                <SelectContent>
-                  {[3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <SelectItem key={num} value={num.toString()}>
-                      {num}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    <SelectItem value={SnoozeType.enCola}>En Cola</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
           <CardFooter className='flex justify-between mt-3'>
             <Button
+              type='submit'
               style={{ backgroundColor: `#${themeColors.primary}` }}
-              onClick={saveRegister}
             >
               Guardar
             </Button>
