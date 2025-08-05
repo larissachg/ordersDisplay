@@ -125,8 +125,8 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
 
         if (nombreEquipo === 'VisorCliente') {
             query = `
-        WITH BaseData AS (
-          SELECT DISTINCT
+            WITH BaseData AS (
+            SELECT DISTINCT
             dc.VisitaID,
             dc.Orden,
             dc.ID AS DetalleCuentaID,
@@ -143,72 +143,71 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
             v.TipoEnvioID,
             v.ParaLlevarID,
             p.TipoProductoID
-          FROM
+            FROM
             DetalleCuenta dc
             INNER JOIN Productos p ON p.ID = dc.ProductoID
             INNER JOIN Visitas v ON v.ID = dc.VisitaID
             LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
-          WHERE
+            WHERE
             COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
-        ),
-        NonSnoozedGroups AS (
-          SELECT
-            VisitaID,
-            Orden
-          FROM BaseData
-          GROUP BY VisitaID, Orden
-          HAVING MIN(Terminado) IS NOT NULL AND NOT EXISTS (SELECT 1 FROM KDS_Snooze kd WHERE kd.VisitaID = BaseData.VisitaID AND kd.Orden = BaseData.Orden)
-        ),
-        TopVisitas AS (
-          SELECT
+            ),
+            NonSnoozedGroups AS (
+            SELECT
             VisitaID,
             Orden,
-            ROW_NUMBER() OVER (ORDER BY MAX(Terminado) DESC, VisitaID DESC) AS RN
-          FROM NonSnoozedGroups
-          GROUP BY VisitaID, Orden
-        )
-        SELECT
-          v.Id AS id,
-          COALESCE(
+            MAX(Terminado) AS MaxTerminado
+            FROM BaseData bd
+            GROUP BY VisitaID, Orden
+            HAVING MIN(Terminado) IS NOT NULL AND NOT EXISTS (SELECT 1 FROM KDS_Snooze kd WHERE kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden)
+            ),
+            TopVisitas AS (
+            SELECT
+            VisitaID,
+            Orden,
+            ROW_NUMBER() OVER (ORDER BY MaxTerminado DESC, VisitaID DESC) AS RN
+            FROM NonSnoozedGroups
+            )
+            SELECT
+            v.Id AS id,
+            COALESCE(
             NULLIF(LTRIM(RTRIM(v.Identificador)), ''),
             m.Nombre,
             CASE WHEN RIGHT(v.Identificador, 2) = '|0' THEN LEFT(v.Identificador, LEN(v.Identificador) - 2) ELSE v.Identificador END
-          ) AS mesa,
-          mes.Nombre AS mesero,
-          te.Nombre AS tipoEnvio,
-          pl.Nombre AS paraLlevar,
-          p.Nombre AS producto,
-          bd.Orden AS orden,
-          bd.Cantidad AS cantidad,
-          bd.DetalleCuentaID AS detalleCuentaId,
-          CAST(bd.Hora AS DATETIME) AS hora,
-          bd.Borrada AS borrada,
-          o.Observacion AS observacion,
-          bd.Terminado AS terminado,
-          (SELECT STRING_AGG(p2.Nombre, ',')
-           FROM ProductosCombos pc
-           INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
-           WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
-          bd.Orden AS newOrder
-        FROM
-          BaseData bd
-          INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
-          INNER JOIN Visitas v ON bd.VisitaID = v.ID
-          INNER JOIN Productos p ON p.ID = bd.ProductoID
-          INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
-          LEFT JOIN Observaciones o ON o.DetalleCuentaID = bd.DetalleCuentaID
-          LEFT JOIN Mesas m ON m.ID = v.MesaID
-          LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
-          LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
-        WHERE
-          tv.RN <= ${limit}
-        ORDER BY
-          tv.RN ASC,
-          bd.Orden DESC,
-          v.Id DESC,
-          bd.Hora DESC,
-          p.Nombre DESC;
-      `;
+            ) AS mesa,
+            mes.Nombre AS mesero,
+            te.Nombre AS tipoEnvio,
+            pl.Nombre AS paraLlevar,
+            p.Nombre AS producto,
+            bd.Orden AS orden,
+            bd.Cantidad AS cantidad,
+            bd.DetalleCuentaID AS detalleCuentaId,
+            CAST(bd.Hora AS DATETIME) AS hora,
+            bd.Borrada AS borrada,
+            o.Observacion AS observacion,
+            bd.Terminado AS terminado,
+            (SELECT STRING_AGG(p2.Nombre, ',')
+            FROM ProductosCombos pc
+            INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
+            WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
+            bd.Orden AS newOrder
+            FROM
+            BaseData bd
+            INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
+            INNER JOIN Visitas v ON bd.VisitaID = v.ID
+            INNER JOIN Productos p ON p.ID = bd.ProductoID
+            INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
+            LEFT JOIN Observaciones o ON o.DetalleCuentaID = bd.DetalleCuentaID
+            LEFT JOIN Mesas m ON m.ID = v.MesaID
+            LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
+            LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+            WHERE
+            tv.RN <= ${limit}
+            ORDER BY
+            tv.RN ASC,
+            bd.Orden DESC,
+            v.Id DESC,
+            bd.Hora DESC,
+            p.Nombre DESC;`;
         }
 
         const pool = await poolPromise;
