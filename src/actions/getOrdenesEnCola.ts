@@ -212,13 +212,13 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             p.Nombre DESC;
         `;
     }
-    console.log(query)
+    //console.log(query)
     const pool = await poolPromise;
     const result = await pool.request().query(query);
     return result.recordset as OrdenDb[];
   }
   catch (error) {
-    console.error('Error al obtener las órdenes:', error);
-    throw new Error('No se pudieron obtener las órdenes');
+    console.error('Error al obtener las órdenes en cola:', error);
+    throw new Error('No se pudieron obtener las órdenes en cola');
   }
 }

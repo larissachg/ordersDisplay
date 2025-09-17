@@ -170,7 +170,7 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
         SELECT
           VisitaID,
           Orden,
-          ROW_NUMBER() OVER (ORDER BY MAX(Terminado) DESC, VisitaID DESC) AS RN
+          ROW_NUMBER() OVER (ORDER BY Orden, VisitaID) AS RN
         FROM NonSnoozedGroups
         GROUP BY VisitaID, Orden
       )
@@ -218,7 +218,7 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
         bd.Hora,
         p.Nombre;`;
         }
-
+        //console.log(query);
         const pool = await poolPromise;
         const result = await pool.request().query(query);
         return result.recordset as OrdenDb[];
