@@ -14,6 +14,8 @@ export interface OrdenDb {
   detalleCuentaId: number; // Columna 'detalleCuentaId'
   terminado?: null | string;
   newOrder: number;
+  resaltado: boolean | null;
+  snoozed: boolean | null;
 }
 
 export interface Orden {
@@ -27,6 +29,8 @@ export interface Orden {
   terminado?: null | string;
   newOrder: number;
   productos: Producto[];
+  resaltado: boolean | null;
+  snoozed: boolean | null;
 }
 
 export interface Producto {

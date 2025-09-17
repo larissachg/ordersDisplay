@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { getOrdenesDb } from '@/actions/getOrdenes'
 import { actualizarOrden } from '@/actions/actualizarOrden'
 import { processOrders } from '@/utils/processOrders'
-import { snoozeOrder } from '@/actions/snooze'
-import { unsnoozeOrder } from '@/actions/unsnooze'
+import { snoozeOrder, unsnoozeOrder, highlightOrder, unhighlightOrder } from '@/actions/atributosDeOrden'
 import { SnoozeType } from '@/contants/snoozeType'
 
 export async function GET(req: Request) {
@@ -54,7 +53,6 @@ export async function PUT(request: Request) {
       return NextResponse.json(result, { status: 201 });
     }
 
-
     if (!idOrden || !idVisita || terminado === undefined) {
       return NextResponse.json(
         { error: 'Orden y Visita son requeridos' },
@@ -77,7 +75,6 @@ export async function PUT(request: Request) {
     )
   }
 }
-
 
 export async function POST(request: Request) {
   try {
@@ -122,5 +119,27 @@ export async function DELETE(request: Request) {
       { error: 'Error al unsnooze la orden' },
       { status: 500 }
     )
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { visitaId, orden, highlight } = body;
+
+    if (!visitaId || !orden || highlight === undefined) {
+      return NextResponse.json({ error: 'visitaId, orden y highlight son requeridos' }, { status: 400 });
+    }
+
+    if (highlight) {
+      await highlightOrder(visitaId, orden);
+      return NextResponse.json({ message: 'Orden resaltada exitosamente' }, { status: 200 });
+    } else {
+      await unhighlightOrder(visitaId, orden);
+      return NextResponse.json({ message: 'Orden desresaltada exitosamente' }, { status: 200 });
+    }
+  } catch (error) {
+    console.error('Error al manejar resaltado:', error);
+    return NextResponse.json({ error: 'Error al manejar resaltado' }, { status: 500 });
   }
 }

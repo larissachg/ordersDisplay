@@ -5,7 +5,6 @@ import { Button } from '../../../../components/ui/button'
 import TimerComponent from '../../../../components/TimerComponent'
 import { ResetIcon } from '@radix-ui/react-icons'
 import { LuPaintBucket } from 'react-icons/lu'
-
 import { Orden } from '@/interfaces/Orden'
 
 const SnoozedOrdersList = ({
@@ -20,8 +19,7 @@ const SnoozedOrdersList = ({
   actualizarItem,
   actualizarOrden,
   mostrarDetallesOrden,
-  paintedItems,
-  togglePaint
+  handleHighlight
 }: {
   snoozedOrdenes: Orden[]
   nombreEquipo: string
@@ -46,8 +44,7 @@ const SnoozedOrdersList = ({
     nombreEquipo: string
   ) => Promise<void>
   mostrarDetallesOrden: (orden: Orden) => void
-  paintedItems: { visitaId: number; orden: number }[]
-  togglePaint: (visitaId: number, orden: number) => void
+  handleHighlight: (visitaId: number, orden: number) => Promise<void>
 }) => {
   const breakpointColumns = {
     default: 3,
@@ -70,15 +67,12 @@ const SnoozedOrdersList = ({
           columnClassName='masonry-column'
         >
           {snoozedOrdenes.map((orden, index) => {
-            const isPainted = paintedItems.some(
-              (item) => item.visitaId === orden.id && item.orden === orden.orden
-            )
             return (
               <Card
                 key={`${orden.id}${orden.orden}`}
                 className={`relative mb-3 break-inside-avoid overflow-hidden shadow-xl ${
                   conDesglose === '0' ? 'h-[30vh]' : 'sm:min-h-[30vh]'
-                } ${isPainted ? 'bg-yellow-200' : ''}`}
+                } ${orden.resaltado ? 'bg-yellow-200' : ''}`} // Usa solo resaltado de DB
                 style={{ borderColor: `#${themeColors.primaryBg}` }}
               >
                 <CardHeader>
@@ -139,14 +133,15 @@ const SnoozedOrdersList = ({
                           <ResetIcon className='!w-[20px] !h-[20px]' />
                         </Button>
                       )}
-
                       <Button
                         className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0'
                         variant='outline'
-                        title={isPainted ? 'Despintar' : 'Pintar'}
-                        onClick={() => togglePaint(orden.id, orden.orden)}
+                        title={orden.resaltado ? 'Despintar' : 'Pintar'}
+                        onClick={() => handleHighlight(orden.id, orden.orden)}
                         style={{
-                          backgroundColor: isPainted ? '#fef9c3' : 'transparent'
+                          backgroundColor: orden.resaltado
+                            ? '#fef9c3'
+                            : 'transparent'
                         }}
                       >
                         <LuPaintBucket className='!w-[20px] !h-[20px]' />

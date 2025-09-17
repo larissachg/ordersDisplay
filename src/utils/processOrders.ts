@@ -2,7 +2,6 @@ import { Orden, OrdenDb, Producto, ProductoCombo } from "@/interfaces/Orden";
 
 export const processOrders = (ordenesDb: OrdenDb[]): Orden[] => {
   const ordenes: Orden[] = [];
-
   for (const ordenDb of ordenesDb) {
     if (
       !ordenes.find(
@@ -47,7 +46,9 @@ export const processOrders = (ordenesDb: OrdenDb[]): Orden[] => {
         orden: ordenDb.orden,
         hora: ordenDb.hora,
         productos: productos,
-        newOrder: ordenDb.newOrder
+        newOrder: ordenDb.newOrder,
+        resaltado: ordenDb.resaltado ?? false,
+        snoozed: ordenDb.snoozed ?? false,
       });
     }
   }

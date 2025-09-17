@@ -1,3 +1,4 @@
+// OrdersPage.tsx
 'use client'
 
 import Masonry from 'react-masonry-css'
@@ -14,7 +15,6 @@ import { OrderDetailDialog } from '@/components/OrderDetailDialog'
 import Image from 'next/image'
 import { LockClosedIcon } from '@radix-ui/react-icons'
 import { LuPaintBucket } from 'react-icons/lu'
-
 import { SnoozeType } from '@/contants/snoozeType'
 import { Badge } from '../../../../components/ui/badge'
 import {
@@ -33,21 +33,21 @@ const themeColors = {
 }
 
 const colorPalette = [
-  '#3B82F6', // Azul
-  '#8B5CF6', // Violeta
-  '#6B7280', // Gris
-  '#6366F1', // Indigo
-  '#EC4899', // Rosa
-  '#F97316', // Naranja
-  '#14B8A6', // Verde Azulado
-  '#A855F7', // Púrpura
-  '#F43F5E', // Rosa Intenso
-  '#22C55E', // Verde Claro
-  '#0EA5E9', // Azul Claro
-  '#DB2777', // Fucsia
-  '#EC4899', // Rosa Medio
-  '#F87171', // Rosa Claro
-  '#34D399' // Verde Menta
+  '#3B82F6',
+  '#8B5CF6',
+  '#6B7280',
+  '#6366F1',
+  '#EC4899',
+  '#F97316',
+  '#14B8A6',
+  '#A855F7',
+  '#F43F5E',
+  '#22C55E',
+  '#0EA5E9',
+  '#DB2777',
+  '#EC4899',
+  '#F87171',
+  '#34D399'
 ]
 
 export const OrdersPage = () => {
@@ -64,10 +64,6 @@ export const OrdersPage = () => {
 
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [snoozedModalOpen, setSnoozedModalOpen] = useState(false)
-  const [paintedItems, setPaintedItems] = useState<
-    { visitaId: number; orden: number }[]
-  >([])
-
   const [activeOrder, setActiveOrder] = useState<{
     orden: number
     detalle: string
@@ -132,8 +128,6 @@ export const OrdersPage = () => {
       const storedSnoozeType = (localStorage.getItem('snoozeType') ??
         SnoozeType.separado) as SnoozeType
 
-      const storedPaintedItems = localStorage.getItem('paintedItems')
-
       if (equipo.length === 0) {
         redirect('/config')
       }
@@ -146,10 +140,6 @@ export const OrdersPage = () => {
       setSnoozeType(storedSnoozeType)
 
       getOrdenes()
-
-      if (storedPaintedItems) {
-        setPaintedItems(JSON.parse(storedPaintedItems))
-      }
 
       const interval = setInterval(() => {
         console.log('Actualizando órdenes...')
@@ -235,9 +225,8 @@ export const OrdersPage = () => {
   }
 
   const mostrarDetallesOrden = (orden: Orden) => {
-    // Formatear los detalles de la orden
     try {
-      let detalles = ``
+      let detalles = ''
       orden.productos.forEach((producto) => {
         if (producto.borrada) return
 
@@ -273,36 +262,17 @@ export const OrdersPage = () => {
 
       if (colorMap[normalizedTipoEnvio]) return colorMap[normalizedTipoEnvio]
 
-      // Generar color dinámico mediante hash
       let hash = 0
       for (let i = 0; i < normalizedTipoEnvio.length; i++) {
         hash = normalizedTipoEnvio.charCodeAt(i) + ((hash << 5) - hash)
-        hash = hash & hash // Asegurar entero de 32 bits
+        hash = hash & hash
       }
 
       const index = Math.abs(hash) % colorPalette.length
-      return colorPalette[index] || colorDefault // Fallback si colorPalette está vacío
+      return colorPalette[index] || colorDefault
     },
     []
   )
-
-  const togglePaint = useCallback((visitaId: number, orden: number) => {
-    setPaintedItems((prev) => {
-      const isPainted = prev.some(
-        (item) => item.visitaId === visitaId && item.orden === orden
-      )
-      let newItems
-      if (isPainted) {
-        newItems = prev.filter(
-          (item) => !(item.visitaId === visitaId && item.orden === orden)
-        )
-      } else {
-        newItems = [...prev, { visitaId, orden }]
-      }
-      localStorage.setItem('paintedItems', JSON.stringify(newItems))
-      return newItems
-    })
-  }, [])
 
   const handleSnooze = useCallback(
     async (visitaId: number, orden: number) => {
@@ -341,6 +311,37 @@ export const OrdersPage = () => {
       }
     },
     [getOrdenes]
+  )
+
+  const handleHighlight = useCallback(
+    async (visitaId: number, orden: number) => {
+      try {
+        const ordenData =
+          ordenes.find((o) => o.id === visitaId && o.orden === orden) ??
+          snoozedOrdenes.find((o) => o.id === visitaId && o.orden === orden)
+        if (ordenData) {
+          await fetch('/api/ordenes', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitaId,
+              orden,
+              highlight: !ordenData.resaltado
+            })
+          })
+          toast.success(
+            ordenData.resaltado ? 'Orden desresaltada' : 'Orden resaltada',
+            {
+              position: 'bottom-center'
+            }
+          )
+          await getOrdenes()
+        }
+      } catch (error) {
+        console.error('Error al resaltar/desresaltar la orden:', error)
+      }
+    },
+    [ordenes, getOrdenes]
   )
 
   if (loading) {
@@ -386,16 +387,12 @@ export const OrdersPage = () => {
           columnClassName='masonry-column'
         >
           {ordenes.map((orden, index) => {
-            const isPainted = paintedItems.some(
-              (item) => item.visitaId === orden.id && item.orden === orden.orden
-            )
-
             return (
               <Card
                 key={`${orden.id}${orden.orden}`}
                 className={`relative mb-3 break-inside-avoid overflow-hidden shadow-xl ${
                   conDesglose === '0' ? 'h-[30vh]' : 'sm:min-h-[30vh]'
-                } ${isPainted ? 'bg-yellow-200' : ''}`}
+                } ${orden.resaltado ? 'bg-yellow-200' : ''}`}
                 style={{ borderColor: `#${themeColors.primaryBg}` }}
               >
                 <CardHeader
@@ -410,7 +407,7 @@ export const OrdersPage = () => {
                 >
                   <div className='flex justify-between border-b-[1px] p-2 items-center'>
                     <div className='flex gap-2'>
-                      <div className=' bg-[#2c3236] rounded-full text-center m-auto border border-white shadow-md min-w-16 min-h-16 flex items-center justify-center px-2'>
+                      <div className='bg-[#2c3236] rounded-full text-center m-auto border border-white shadow-md min-w-16 min-h-16 flex items-center justify-center px-2'>
                         <span className={`text-[2rem] font-bold text-white`}>
                           {orden.orden}
                         </span>
@@ -457,7 +454,7 @@ export const OrdersPage = () => {
                                 handleUnsnooze(orden.id, orden.orden)
                               }
                             >
-                              <LockClosedIcon className='!w-[20px] !h-[20px] ' />
+                              <LockClosedIcon className='!w-[20px] !h-[20px]' />
                             </Button>
                           ) : (
                             <Button
@@ -483,10 +480,12 @@ export const OrdersPage = () => {
                       <Button
                         className='rounded-full w-[40px] h-[40px] text-[16px] shadow-lg p-0'
                         variant='outline'
-                        title={isPainted ? 'Despintar' : 'Pintar'}
-                        onClick={() => togglePaint(orden.id, orden.orden)}
+                        title={orden.resaltado ? 'Despintar' : 'Pintar'}
+                        onClick={() => handleHighlight(orden.id, orden.orden)}
                         style={{
-                          backgroundColor: isPainted ? '#fef9c3' : 'transparent'
+                          backgroundColor: orden.resaltado
+                            ? '#fef9c3'
+                            : 'transparent'
                         }}
                       >
                         <LuPaintBucket className='!w-[20px] !h-[20px]' />
@@ -564,7 +563,6 @@ export const OrdersPage = () => {
                             {producto.cantidad}x {producto.producto}
                           </h2>
                         </div>
-
                         {producto.combos.map((combo, index) => (
                           <ul
                             className='font-semibold pl-5 text-2xl leading-6'
@@ -575,7 +573,6 @@ export const OrdersPage = () => {
                             </li>
                           </ul>
                         ))}
-
                         {producto.observacion && (
                           <p className='font-semibold pl-5 text-2xl leading-6'>
                             - {producto.observacion}
@@ -594,7 +591,7 @@ export const OrdersPage = () => {
                     actualizarOrden(orden.id, orden.orden, true, nombreEquipo)
                   }}
                 >
-                  <CheckCheck className='!w-[25px] !h-[25px] text-[#fff' />
+                  <CheckCheck className='!w-[25px] !h-[25px] text-[#fff]' />
                 </Button>
               </Card>
             )
@@ -644,8 +641,7 @@ export const OrdersPage = () => {
               actualizarItem={actualizarItem}
               actualizarOrden={actualizarOrden}
               mostrarDetallesOrden={mostrarDetallesOrden}
-              paintedItems={paintedItems}
-              togglePaint={togglePaint}
+              handleHighlight={handleHighlight}
             />
           </DialogContent>
         </Dialog>
