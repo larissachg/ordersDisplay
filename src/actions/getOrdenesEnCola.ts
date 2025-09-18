@@ -127,52 +127,57 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
         p.Nombre;`;
 
     if (nombreEquipo === 'VisorCliente') {
-      query = `
-          WITH BaseData AS (
+      query = `WITH BaseData AS (
             SELECT DISTINCT
-              dc.VisitaID,
-              dc.Orden,
-              dc.ID AS DetalleCuentaID,
-              dc.Cantidad,
-              dc.Hora,
-              dc.Borrada,
-              dc.Terminado,
-              dc.TomoPedidoMeseroID,
-              dc.ProductoID,
-              COALESCE(pl.HoraRecoger, dc.Hora) AS HoraEfectiva,
-              v.ID AS VisitaID_Visitas,
-              v.Identificador,
-              v.MesaID,
-              v.TipoEnvioID,
-              v.ParaLlevarID,
-              p.TipoProductoID
+            dc.VisitaID,
+            dc.Orden,
+            dc.ID AS DetalleCuentaID,
+            dc.Cantidad,
+            dc.Hora,
+            dc.Borrada,
+            dc.Terminado,
+            dc.TomoPedidoMeseroID,
+            dc.ProductoID,
+            COALESCE(pl.HoraRecoger, dc.Hora) AS HoraEfectiva,
+            v.ID AS VisitaID_Visitas,
+            v.Identificador,
+            v.MesaID,
+            v.TipoEnvioID,
+            v.ParaLlevarID,
+            p.TipoProductoID
             FROM
-              DetalleCuenta dc
-              INNER JOIN Productos p ON p.ID = dc.ProductoID
-              INNER JOIN Visitas v ON v.ID = dc.VisitaID
-              LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
+            DetalleCuenta dc
+            INNER JOIN Productos p ON p.ID = dc.ProductoID
+            INNER JOIN Visitas v ON v.ID = dc.VisitaID
+            LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
             WHERE
-              COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
-          ),
-          TopVisitas AS (
+            COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
+            ),
+            NonSnoozedGroups AS (
             SELECT
-              VisitaID,
-              Orden,
-              ROW_NUMBER() OVER (ORDER BY MAX(Terminado) DESC, VisitaID DESC) AS RN
-            FROM
-              BaseData
+                VisitaID,
+                Orden,
+                MAX(Terminado) AS MaxTerminado
+            FROM BaseData bd
             GROUP BY VisitaID, Orden
-            HAVING MIN(Terminado) IS NOT NULL
-          ),
-          MaxOrden AS (
-            SELECT MAX(Orden) AS MaxOrden FROM TopVisitas
-          )
-          SELECT
+            HAVING 
+                MIN(Terminado) IS NOT NULL 
+                AND MAX(CASE WHEN Terminado IS NULL THEN 1 ELSE 0 END) = 0
+                AND NOT EXISTS (SELECT 1 FROM KDS_Snooze kd WHERE kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden)
+            ),
+            TopVisitas AS (
+            SELECT
+            VisitaID,
+            Orden,
+            ROW_NUMBER() OVER (ORDER BY MaxTerminado DESC, VisitaID DESC) AS RN
+            FROM NonSnoozedGroups
+            )
+            SELECT
             v.Id AS id,
             COALESCE(
-              NULLIF(LTRIM(RTRIM(v.Identificador)), ''),
-              m.Nombre,
-              CASE WHEN RIGHT(v.Identificador, 2) = '|0' THEN LEFT(v.Identificador, LEN(v.Identificador) - 2) ELSE v.Identificador END
+            NULLIF(LTRIM(RTRIM(v.Identificador)), ''),
+            m.Nombre,
+            CASE WHEN RIGHT(v.Identificador, 2) = '|0' THEN LEFT(v.Identificador, LEN(v.Identificador) - 2) ELSE v.Identificador END
             ) AS mesa,
             mes.Nombre AS mesero,
             te.Nombre AS tipoEnvio,
@@ -186,13 +191,13 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             o.Observacion AS observacion,
             bd.Terminado AS terminado,
             (SELECT STRING_AGG(p2.Nombre, ',')
-             FROM ProductosCombos pc
-             INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
-             WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
-            bd.Orden + IIF(kd.RN IS NULL, 0, COALESCE(mrn.MaxOrden, 0) + kd.RN) AS newOrder,
-            COALESCE(kd.Resaltado, 0) AS resaltado,
-            COALESCE(kd.Snoozed, 0) AS snoozed
-          FROM
+            FROM ProductosCombos pc
+            INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
+            WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
+            bd.Orden AS newOrder,
+            0 AS resaltado,
+            0 AS snoozed
+            FROM
             BaseData bd
             INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden
             INNER JOIN Visitas v ON bd.VisitaID = v.ID
@@ -202,11 +207,9 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             LEFT JOIN Mesas m ON m.ID = v.MesaID
             LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
             LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
-            LEFT JOIN MaxOrden mrn ON 1 = 1
-            LEFT JOIN (SELECT VisitaID, Orden, ROW_NUMBER() OVER (ORDER BY KDSsnoozeID) AS RN FROM KDS_Snooze) kd ON kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden
-          WHERE
+            WHERE
             tv.RN <= ${limit}
-          ORDER BY
+            ORDER BY
             tv.RN ASC,
             bd.Orden DESC,
             v.Id DESC,
