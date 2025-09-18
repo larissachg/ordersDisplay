@@ -189,7 +189,9 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
              FROM ProductosCombos pc
              INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
              WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
-            bd.Orden + IIF(kd.RN IS NULL, 0, COALESCE(mrn.MaxOrden, 0) + kd.RN) AS newOrder
+            bd.Orden + IIF(kd.RN IS NULL, 0, COALESCE(mrn.MaxOrden, 0) + kd.RN) AS newOrder,
+            COALESCE(kd.Resaltado, 0) AS resaltado,
+            COALESCE(kd.Snoozed, 0) AS snoozed
           FROM
             BaseData bd
             INNER JOIN TopVisitas tv ON bd.VisitaID = tv.VisitaID AND bd.Orden = tv.Orden

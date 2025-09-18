@@ -4,43 +4,43 @@ import { poolPromise } from './db';
 import moment from 'moment-timezone';
 
 export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
-    try {
-        const now = moment().tz('America/La_Paz');
-        const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const startOfTomorrow = now.clone().add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  try {
+    const now = moment().tz('America/La_Paz');
+    const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const startOfTomorrow = now.clone().add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
 
-        let despachoTopVisitasStr = `
+    let despachoTopVisitasStr = `
       INNER JOIN Visitas v ON v.ID = dc.VisitaID
       LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
       INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
     `;
-        let despachoStr = `
+    let despachoStr = `
       INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
       INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
     `;
 
-        if (nombreEquipo === 'DespachoToptech') {
-            despachoTopVisitasStr = `
+    if (nombreEquipo === 'DespachoToptech') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        } else if (nombreEquipo === 'DespachoToptechDelivery') {
-            despachoTopVisitasStr = `
+      despachoStr = '';
+    } else if (nombreEquipo === 'DespachoToptechDelivery') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        } else if (nombreEquipo === 'DespachoToptechMesa') {
-            despachoTopVisitasStr = `
+      despachoStr = '';
+    } else if (nombreEquipo === 'DespachoToptechMesa') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NOT NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        }
+      despachoStr = '';
+    }
 
-        let query = `WITH BaseData AS (
+    let query = `WITH BaseData AS (
       SELECT DISTINCT
         dc.VisitaID,
         dc.Orden,
@@ -64,7 +64,6 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
         ${despachoTopVisitasStr}
       WHERE
         COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
-        AND dc.Terminado IS NULL
     ),
     NonSnoozedGroups AS (
       SELECT
@@ -128,8 +127,8 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
       bd.Hora,
       p.Nombre;`;
 
-        if (nombreEquipo === 'VisorCliente') {
-            query = `WITH BaseData AS (
+    if (nombreEquipo === 'VisorCliente') {
+      query = `WITH BaseData AS (
         SELECT DISTINCT
           dc.VisitaID,
           dc.Orden,
@@ -154,7 +153,6 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
           LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
         WHERE
           COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
-          AND dc.Terminado IS NOT NULL
       ),
       NonSnoozedGroups AS (
         SELECT
@@ -217,55 +215,55 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
         v.Id,
         bd.Hora,
         p.Nombre;`;
-        }
-        //console.log(query);
-        const pool = await poolPromise;
-        const result = await pool.request().query(query);
-        return result.recordset as OrdenDb[];
-    } catch (error) {
-        console.error('Error al obtener órdenes principales:', error);
-        throw new Error('No se pudieron obtener las órdenes principales');
     }
+    //console.log(query);
+    const pool = await poolPromise;
+    const result = await pool.request().query(query);
+    return result.recordset as OrdenDb[];
+  } catch (error) {
+    console.error('Error al obtener órdenes principales:', error);
+    throw new Error('No se pudieron obtener las órdenes principales');
+  }
 }
 
 export async function getSnoozedOrdenesDb(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
-    try {
-        const now = moment().tz('America/La_Paz');
-        const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const startOfTomorrow = now.clone().add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  try {
+    const now = moment().tz('America/La_Paz');
+    const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const startOfTomorrow = now.clone().add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
 
-        let despachoTopVisitasStr = `
+    let despachoTopVisitasStr = `
       INNER JOIN Visitas v ON v.ID = dc.VisitaID
       LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
       INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
     `;
-        let despachoStr = `
+    let despachoStr = `
       INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
       INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
     `;
 
-        if (nombreEquipo === 'DespachoToptech') {
-            despachoTopVisitasStr = `
+    if (nombreEquipo === 'DespachoToptech') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        } else if (nombreEquipo === 'DespachoToptechDelivery') {
-            despachoTopVisitasStr = `
+      despachoStr = '';
+    } else if (nombreEquipo === 'DespachoToptechDelivery') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        } else if (nombreEquipo === 'DespachoToptechMesa') {
-            despachoTopVisitasStr = `
+      despachoStr = '';
+    } else if (nombreEquipo === 'DespachoToptechMesa') {
+      despachoTopVisitasStr = `
         INNER JOIN Visitas v ON v.ID = dc.VisitaID AND v.MesaID IS NOT NULL
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       `;
-            despachoStr = '';
-        }
+      despachoStr = '';
+    }
 
-        let query = `WITH BaseData AS (
+    let query = `WITH BaseData AS (
       SELECT DISTINCT
         dc.VisitaID,
         dc.Orden,
@@ -354,8 +352,8 @@ export async function getSnoozedOrdenesDb(nombreEquipo: string, limit: number): 
       bd.Hora,
       p.Nombre;`;
 
-        if (nombreEquipo === 'VisorCliente') {
-            query = `WITH BaseData AS (
+    if (nombreEquipo === 'VisorCliente') {
+      query = `WITH BaseData AS (
         SELECT DISTINCT
           dc.VisitaID,
           dc.Orden,
@@ -445,13 +443,13 @@ export async function getSnoozedOrdenesDb(nombreEquipo: string, limit: number): 
         v.Id DESC,
         bd.Hora DESC,
         p.Nombre;`;
-        }
-
-        const pool = await poolPromise;
-        const result = await pool.request().query(query);
-        return result.recordset as OrdenDb[];
-    } catch (error) {
-        console.error('Error al obtener órdenes snoozed:', error);
-        throw new Error('No se pudieron obtener las órdenes snoozed');
     }
+
+    const pool = await poolPromise;
+    const result = await pool.request().query(query);
+    return result.recordset as OrdenDb[];
+  } catch (error) {
+    console.error('Error al obtener órdenes snoozed:', error);
+    throw new Error('No se pudieron obtener las órdenes snoozed');
+  }
 }
