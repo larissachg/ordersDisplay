@@ -98,7 +98,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
         bd.Borrada AS borrada,
         o.Observacion AS observacion,
         bd.Terminado AS terminado,
-        (SELECT STRING_AGG(p2.Nombre, ',')
+        (SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',')
          FROM ProductosCombos pc
          INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
          WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
@@ -190,7 +190,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             bd.Borrada AS borrada,
             o.Observacion AS observacion,
             bd.Terminado AS terminado,
-            (SELECT STRING_AGG(p2.Nombre, ',')
+            (SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',')
             FROM ProductosCombos pc
             INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
             WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,

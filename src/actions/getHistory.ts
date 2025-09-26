@@ -41,7 +41,7 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
     //    DetalleCuenta.Borrada AS borrada, 
     //    Observaciones.Observacion AS observacion,
     //    (
-    //        SELECT STRING_AGG(P2.Nombre, ',') 
+    //        SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',') 
     //        FROM ProductosCombos
     //        INNER JOIN Productos AS P2 ON P2.ID = ProductosCombos.ProductoID 
     //        WHERE ProductosCombos.DetalleCuentaID = DetalleCuenta.ID 
@@ -110,7 +110,7 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
           bd.borrada,
           o.observacion,
           bd.terminado,
-          (SELECT STRING_AGG(p2.Nombre, ',')
+          (SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',')
           FROM ProductosCombos pc
           INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
           WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo
