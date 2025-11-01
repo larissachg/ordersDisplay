@@ -120,6 +120,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
       WHERE
         tv.RN <= ${limit}
       ORDER BY
+        CASE WHEN LOWER(te.Nombre) LIKE 'postres%' THEN 0 ELSE 1 END,
         newOrder,
         bd.Orden,
         v.Id,

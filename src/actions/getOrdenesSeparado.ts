@@ -124,6 +124,7 @@ export async function getMainOrdenesDb(nombreEquipo: string, limit: number): Pro
     WHERE
       tv.RN <= ${limit}
     ORDER BY
+      CASE WHEN LOWER(te.Nombre) LIKE 'postres%' THEN 0 ELSE 1 END,
       bd.Orden,
       v.Id,
       bd.Hora,

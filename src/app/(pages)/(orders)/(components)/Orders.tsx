@@ -260,6 +260,9 @@ export const OrdersPage = () => {
         yango: '#C539F7' // Morado
       }
 
+      // 🔸 Si empieza con "postres", aplica el color café
+    if (normalizedTipoEnvio.startsWith('postres')) return '#5e471cff'
+    
       if (colorMap[normalizedTipoEnvio]) return colorMap[normalizedTipoEnvio]
 
       let hash = 0
