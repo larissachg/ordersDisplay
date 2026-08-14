@@ -1,11 +1,11 @@
 import { Equipo } from '@/interfaces/Equipo'
-import { poolPromise } from './db'
+import { getPool } from './db'
 
 // Define el tipo de datos que regresará la consulta
 
 export async function getEquiposDb(): Promise<Equipo[]> {
   try {
-    const pool = await poolPromise
+    const pool = await getPool()
     const result = await pool.request().query(`
       select Nombre as nombre, NombreFisico as nombreFisico from Impresoras where esMonitorDigital =1
       UNION select 'Despacho Todo', 'DespachoToptech'

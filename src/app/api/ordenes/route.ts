@@ -9,10 +9,11 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const equipo = searchParams.get('equipo') ?? ''
-    const limit = searchParams.get("limit") ?? 9;
+    const limitParam = parseInt(searchParams.get('limit') ?? '', 10)
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 9
     const snoozeType = (searchParams.get('snoozeType') ?? SnoozeType.enCola) as SnoozeType;
 
-    const ordenesDb = await getOrdenesDb(equipo, +limit, snoozeType);
+    const ordenesDb = await getOrdenesDb(equipo, limit, snoozeType);
 
     if (snoozeType === SnoozeType.separado) {
       const mainOrders = processOrders(ordenesDb.main || []);
@@ -35,6 +36,13 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json()
     const { detalleCuentaId, idVisita, idOrden, terminado, nombreEquipo } = body;
+
+    if (typeof nombreEquipo !== 'string' || nombreEquipo.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'nombreEquipo es requerido' },
+        { status: 400 }
+      );
+    }
 
     if (detalleCuentaId !== undefined) {
       if (terminado === undefined) {

@@ -1,5 +1,5 @@
 import moment from 'moment-timezone'
-import { poolPromise, sql } from './db'
+import { getPool, sql } from './db'
 
 
 interface ActualizarItemParams {
@@ -19,7 +19,7 @@ type ActualizarParams = ActualizarItemParams | ActualizarOrdenParams;
 
 export async function actualizarOrden(params: ActualizarParams): Promise<string> {
   try {
-    const pool = await poolPromise
+    const pool = await getPool()
 
     const fechaTerminado = params.terminado
       ? moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:ss')
@@ -65,9 +65,9 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
             INNER JOIN Productos P ON P.ID = DC.ProductoID
             INNER JOIN TiposProductos TP ON TP.TipoProductoID = P.TipoProductoID
             INNER JOIN Impresoras I ON TP.kitchenDisplayID = I.ImpresoraID
-            WHERE 
+            WHERE
               DC.ID = @detalleCuentaId
-              AND I.NombreFisico LIKE '%' + @nombreEquipo + '%' ${whereActualizar};
+              AND I.NombreFisico = @nombreEquipo ${whereActualizar};
           `);
 
         if (result.rowsAffected[0] > 0) {
@@ -117,10 +117,10 @@ export async function actualizarOrden(params: ActualizarParams): Promise<string>
           INNER JOIN Productos P ON P.ID = DC.ProductoID
           INNER JOIN TiposProductos TP ON TP.TipoProductoID = P.TipoProductoID
           INNER JOIN Impresoras I ON TP.kitchenDisplayID = I.ImpresoraID
-          WHERE 
+          WHERE
             DC.VisitaID = @idVisita
             AND DC.Orden = @idOrden
-            AND I.NombreFisico LIKE '%' + @nombreEquipo + '%' ${whereActualizar};
+            AND I.NombreFisico = @nombreEquipo ${whereActualizar};
         `)
 
         // Verifica si se actualizó alguna fila

@@ -1,6 +1,6 @@
 // getOrdenesEnCola.ts
 import { OrdenDb } from '@/interfaces/Orden';
-import { poolPromise } from './db';
+import { getPool, sql } from './db';
 import moment from 'moment-timezone';
 
 export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Promise<OrdenDb[]> {
@@ -14,11 +14,11 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
         INNER JOIN Visitas v ON v.ID = dc.VisitaID
         LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
         INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
-        INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
+        INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = @nombreEquipo
       `;
     let despachoStr = `
         INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
-        INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = '${nombreEquipo}'
+        INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = @nombreEquipo
       `;
 
     if (nombreEquipo === 'DespachoToptech') {
@@ -64,7 +64,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
           INNER JOIN Productos p ON p.ID = dc.ProductoID
           ${despachoTopVisitasStr}
         WHERE
-          COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
+          COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN @startOfToday AND @startOfTomorrow
       ),
       TopVisitas AS (
         SELECT
@@ -118,8 +118,9 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
         LEFT JOIN (SELECT VisitaID, Orden,Snoozed,Resaltado, ROW_NUMBER() OVER (ORDER BY KDSsnoozeID) AS RN FROM KDS_Snooze) kd ON kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden
         ${despachoStr}
       WHERE
-        tv.RN <= ${limit}
+        tv.RN <= @limit
       ORDER BY
+        CASE WHEN kd.Snoozed = 1 THEN 1 ELSE 0 END,
         CASE WHEN LOWER(te.Nombre) LIKE 'postres%' THEN 0 ELSE 1 END,
         newOrder,
         bd.Orden,
@@ -152,7 +153,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             INNER JOIN Visitas v ON v.ID = dc.VisitaID
             LEFT JOIN ParaLLevar pl ON pl.ParaLlevarID = v.ParaLlevarID
             WHERE
-            COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' AND '${startOfTomorrow}'
+            COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN @startOfToday AND @startOfTomorrow
             ),
             NonSnoozedGroups AS (
             SELECT
@@ -164,7 +165,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             HAVING 
                 MIN(Terminado) IS NOT NULL 
                 AND MAX(CASE WHEN Terminado IS NULL THEN 1 ELSE 0 END) = 0
-                AND NOT EXISTS (SELECT 1 FROM KDS_Snooze kd WHERE kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden)
+                AND NOT EXISTS (SELECT 1 FROM KDS_Snooze kd WHERE kd.VisitaID = bd.VisitaID AND kd.Orden = bd.Orden AND kd.Snoozed = 1)
             ),
             TopVisitas AS (
             SELECT
@@ -209,7 +210,7 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
             LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
             WHERE
-            tv.RN <= ${limit}
+            tv.RN <= @limit
             ORDER BY
             tv.RN ASC,
             bd.Orden DESC,
@@ -218,9 +219,13 @@ export async function getOrdenesEnCola(nombreEquipo: string, limit: number): Pro
             p.Nombre DESC;
         `;
     }
-    //console.log(query)
-    const pool = await poolPromise;
-    const result = await pool.request().query(query);
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('nombreEquipo', sql.VarChar, nombreEquipo)
+      .input('startOfToday', sql.VarChar, startOfToday)
+      .input('startOfTomorrow', sql.VarChar, startOfTomorrow)
+      .input('limit', sql.Int, limit)
+      .query(query);
     return result.recordset as OrdenDb[];
   }
   catch (error) {

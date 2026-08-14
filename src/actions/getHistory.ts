@@ -1,5 +1,5 @@
 import { OrdenDb } from '@/interfaces/Orden'
-import { poolPromise } from './db'
+import { getPool, sql } from './db'
 import moment from 'moment-timezone'
 
 export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
@@ -11,10 +11,10 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
         .add(1, 'day')
         .startOf('day')
         .format('YYYY-MM-DD HH:mm:ss');
-  
 
-    let despachoStr = ` INNER JOIN TiposProductos ON TiposProductos.TipoProductoID = p.TipoProductoID 
-      INNER JOIN Impresoras ON TiposProductos.kitchenDisplayID = Impresoras.ImpresoraID  AND Impresoras.NombreFisico LIKE '%${nombreEquipo}%' `
+
+    let despachoStr = ` INNER JOIN TiposProductos tp ON tp.TipoProductoID = p.TipoProductoID
+      INNER JOIN Impresoras i ON tp.kitchenDisplayID = i.ImpresoraID AND i.NombreFisico = @nombreEquipo `
     let whereStr = ''
     if (nombreEquipo === 'DespachoToptech') {
       despachoStr = ''
@@ -25,46 +25,6 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
       despachoStr = ''
       whereStr = ' and v.MesaID is not null'
     }
-
-
-    //const queryOLD =`
-    //   SELECT  
-    //    Visitas.Id AS id,
-    //    iif(Visitas.Identificador is null OR LEN(TRIM(Visitas.Identificador)) <= 2, Mesas.Nombre,Visitas.Identificador) AS mesa,
-    //    Meseros.Nombre AS mesero,
-    //    TipoEnvios.Nombre AS tipoEnvio,
-    //    ParaLlevar.Nombre AS paraLlevar, 
-    //    Productos.Nombre AS producto,
-    //    DetalleCuenta.Orden AS orden,
-    //    DetalleCuenta.Cantidad AS cantidad,
-    //    CAST(DetalleCuenta.Hora AS DATETIME) AS hora,
-    //    DetalleCuenta.Borrada AS borrada, 
-    //    Observaciones.Observacion AS observacion,
-    //    (
-    //        SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',') 
-    //        FROM ProductosCombos
-    //        INNER JOIN Productos AS P2 ON P2.ID = ProductosCombos.ProductoID 
-    //        WHERE ProductosCombos.DetalleCuentaID = DetalleCuenta.ID 
-    //    ) AS productosCombo
-    //FROM 
-    //    DetalleCuenta INNER JOIN 
-    //    Visitas ON DetalleCuenta.visitaID = Visitas.ID 
-    //    INNER JOIN Productos ON Productos.ID = DetalleCuenta.ProductoID 
-    //    INNER JOIN Meseros ON Meseros.MeseroID = DetalleCuenta.TomoPedidoMeseroID 
-    //    LEFT JOIN Observaciones ON Observaciones.DetalleCuentaID = DetalleCuenta.ID 
-    //    LEFT JOIN Mesas ON Mesas.ID = Visitas.MesaID 
-    //    LEFT JOIN TipoEnvios ON Visitas.TipoEnvioID = TipoEnvios.TipoEnvioID 
-    //    LEFT JOIN ParaLlevar ON Visitas.ParaLlevarID = ParaLlevar.ParaLlevarID 
-    //    ${despachoStr}       
-    //WHERE 
-    //    iif(ParaLlevar.HoraRecoger is null, DetalleCuenta.Hora, ParaLlevar.HoraRecoger)  between '${startOfToday}' and '${startOfTomorrow}'
-    //    AND DetalleCuenta.Terminado IS NOT NULL ${whereStr}       
-    //ORDER BY 
-    //    DetalleCuenta.Orden desc, 
-    //    Visitas.Id desc, 
-    //    DetalleCuenta.Hora, 
-    //    Productos.Nombre;
-    //  `
 
       const query1 =`
       WITH BaseData AS (
@@ -77,20 +37,14 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
               dc.Borrada,
               dc.Terminado,
               dc.TomoPedidoMeseroID,
-              dc.ProductoID,
-              COALESCE(pl.HoraRecoger, dc.Hora) AS HoraEfectiva,
-              v.Identificador,
-              v.MesaID,
-              v.TipoEnvioID,
-              v.ParaLlevarID,
-              p.TipoProductoID
+              dc.ProductoID
           FROM DetalleCuenta dc
           INNER JOIN Productos p ON p.ID = dc.ProductoID
           INNER JOIN Visitas v ON v.ID = dc.VisitaID
           LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
-          ${despachoStr}    
-          WHERE COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN '${startOfToday}' and '${startOfTomorrow}'
-            AND dc.Borrada = 0 ${whereStr} 
+          ${despachoStr}
+          WHERE COALESCE(pl.HoraRecoger, dc.Hora) BETWEEN @startOfToday AND @startOfTomorrow
+            AND dc.Terminado IS NOT NULL ${whereStr}
       )
       SELECT
           v.ID AS id,
@@ -103,18 +57,21 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
           te.Nombre AS tipoEnvio,
           pl.Nombre AS paraLlevar,
           p.Nombre AS producto,
-          bd.orden,
-          bd.cantidad,
-          bd.DetalleCuentaID,
+          bd.Orden AS orden,
+          bd.Cantidad AS cantidad,
+          bd.DetalleCuentaID AS detalleCuentaId,
           CAST(bd.Hora AS DATETIME) AS hora,
-          bd.borrada,
-          o.observacion,
-          bd.terminado,
+          bd.Borrada AS borrada,
+          o.Observacion AS observacion,
+          bd.Terminado AS terminado,
           (SELECT STRING_AGG(REPLACE(p2.Nombre, ',', '.'), ',')
           FROM ProductosCombos pc
           INNER JOIN Productos p2 ON p2.ID = pc.ProductoID
-          WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo
-      FROM BaseData bd    
+          WHERE pc.DetalleCuentaID = bd.DetalleCuentaID) AS productosCombo,
+          bd.Orden AS newOrder,
+          0 AS resaltado,
+          0 AS snoozed
+      FROM BaseData bd
       INNER JOIN Visitas v ON bd.VisitaID = v.ID
       INNER JOIN Productos p ON p.ID = bd.ProductoID
       INNER JOIN Meseros mes ON mes.MeseroID = bd.TomoPedidoMeseroID
@@ -124,10 +81,13 @@ export async function getHistoryDb(nombreEquipo: string): Promise<OrdenDb[]> {
       LEFT JOIN ParaLlevar pl ON pl.ParaLlevarID = v.ParaLlevarID
       ORDER BY bd.Orden DESC, v.ID DESC, bd.Hora, p.Nombre;
       `
-    //console.log('Query:', query1)
-    const pool = await poolPromise
-    const result = await pool.request().query(query1)
-    
+    const pool = await getPool()
+    const result = await pool.request()
+      .input('nombreEquipo', sql.VarChar, nombreEquipo)
+      .input('startOfToday', sql.VarChar, startOfToday)
+      .input('startOfTomorrow', sql.VarChar, startOfTomorrow)
+      .query(query1)
+
     return result.recordset as OrdenDb[]
   } catch (error) {
     console.error('Error al obtener las órdenes:', error)

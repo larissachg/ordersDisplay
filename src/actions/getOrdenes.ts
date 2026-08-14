@@ -6,8 +6,10 @@ import { getMainOrdenesDb, getSnoozedOrdenesDb } from './getOrdenesSeparado';
 export async function getOrdenesDb(nombreEquipo: string, limit: number, snoozeType: SnoozeType = SnoozeType.enCola): Promise<{ main?: OrdenDb[]; snoozed?: OrdenDb[] }> {
   try {
     if (snoozeType === SnoozeType.separado) {
-      const main = await getMainOrdenesDb(nombreEquipo, limit);
-      const snoozed = await getSnoozedOrdenesDb(nombreEquipo, limit);
+      const [main, snoozed] = await Promise.all([
+        getMainOrdenesDb(nombreEquipo, limit),
+        getSnoozedOrdenesDb(nombreEquipo, limit),
+      ]);
       return { main, snoozed };
     } else {
       const ordenes = await getOrdenesEnCola(nombreEquipo, limit);

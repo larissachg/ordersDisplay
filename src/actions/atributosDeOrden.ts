@@ -1,16 +1,18 @@
-import { poolPromise } from './db';
+import { getPool } from './db';
 
 export async function snoozeOrder(visitaId: number, orden: number): Promise<void> {
     try {
-        const pool = await poolPromise;
+        const pool = await getPool();
+        // DELETE + INSERT para que la fila reciba un KDSsnoozeID nuevo:
+        // la posicion en la cola de dormidas se deriva de ese ID, asi que
+        // re-snoozear debe mandar la orden al final, no a su posicion vieja.
         await pool.request()
             .input('visitaId', visitaId)
             .input('orden', orden)
             .query(`
-        IF EXISTS (SELECT 1 FROM KDS_Snooze WHERE VisitaID = @visitaId AND Orden = @orden)
-          UPDATE KDS_Snooze SET Snoozed = 1 WHERE VisitaID = @visitaId AND Orden = @orden
-        ELSE
-          INSERT INTO KDS_Snooze (VisitaID, Orden, Snoozed, Resaltado) VALUES (@visitaId, @orden, 1, 0)
+        DECLARE @resaltado INT = COALESCE((SELECT TOP 1 Resaltado FROM KDS_Snooze WHERE VisitaID = @visitaId AND Orden = @orden), 0);
+        DELETE FROM KDS_Snooze WHERE VisitaID = @visitaId AND Orden = @orden;
+        INSERT INTO KDS_Snooze (VisitaID, Orden, Snoozed, Resaltado) VALUES (@visitaId, @orden, 1, @resaltado);
       `);
     } catch (error) {
         console.error('Error al snoozear la orden:', error);
@@ -20,7 +22,7 @@ export async function snoozeOrder(visitaId: number, orden: number): Promise<void
 
 export async function unsnoozeOrder(visitaId: number, orden: number): Promise<void> {
     try {
-        const pool = await poolPromise;
+        const pool = await getPool();
         await pool.request()
             .input('visitaId', visitaId)
             .input('orden', orden)
@@ -35,7 +37,7 @@ export async function unsnoozeOrder(visitaId: number, orden: number): Promise<vo
 
 export async function highlightOrder(visitaId: number, orden: number): Promise<void> {
     try {
-        const pool = await poolPromise;
+        const pool = await getPool();
         await pool.request()
             .input('visitaId', visitaId)
             .input('orden', orden)
@@ -53,7 +55,7 @@ export async function highlightOrder(visitaId: number, orden: number): Promise<v
 
 export async function unhighlightOrder(visitaId: number, orden: number): Promise<void> {
     try {
-        const pool = await poolPromise;
+        const pool = await getPool();
         await pool.request()
             .input('visitaId', visitaId)
             .input('orden', orden)
