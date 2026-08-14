@@ -18,15 +18,20 @@ export const SideMenu = () => {
 
   const getEquipos = useCallback(async () => {
     try {
-      const resp = await fetch("/api/equipos", { method: "GET" });
+      const [resp, respEstaciones] = await Promise.all([
+        fetch("/api/equipos", { method: "GET" }),
+        fetch("/api/estaciones", { method: "GET" }).catch(() => null),
+      ]);
       if (!resp.ok) {
         throw new Error(
           "Error al obtener los equipos, porfavor revisa la conexion a tu base de datos"
         );
       }
       const data = await resp.json();
+      const dataEstaciones =
+        respEstaciones && respEstaciones.ok ? await respEstaciones.json() : [];
 
-      if (data.length > 1) {
+      if (data.length + dataEstaciones.length > 1) {
         setShowConfig(true);
       }
     } catch (error) {

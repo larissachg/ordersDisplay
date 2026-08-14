@@ -5,13 +5,16 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Equipo } from '@/interfaces/Equipo'
+import { Estacion } from '@/interfaces/Cocina'
 import { redirect } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -30,19 +33,27 @@ export const FormConfig = () => {
   const [enableSnooze, setEnableSnooze] = useState('0')
   const [snoozeType, setSnoozeType] = useState<SnoozeType>(SnoozeType.separado)
   const [equipos, setEquipos] = useState<Equipo[]>([])
+  const [estaciones, setEstaciones] = useState<Estacion[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
+  const esEstacion = nombreEquipo.startsWith('estacion:')
 
   const getEquipos = useCallback(async () => {
     try {
-      const resp = await fetch('/api/equipos', { method: 'GET' })
+      const [resp, respEstaciones] = await Promise.all([
+        fetch('/api/equipos', { method: 'GET' }),
+        fetch('/api/estaciones', { method: 'GET' }).catch(() => null)
+      ])
       if (!resp.ok) {
         throw new Error(
           'Error al obtener los equipos, por favor revisa la conexión a tu base de datos'
         )
       }
       const data = await resp.json()
+      const dataEstaciones =
+        respEstaciones && respEstaciones.ok ? await respEstaciones.json() : []
 
       setEquipos(data)
+      setEstaciones(dataEstaciones)
       setNombreEquipo(localStorage.getItem('equipo') || '')
       setconDesglose(localStorage.getItem('conDesglose') || '1')
       setColumns(localStorage.getItem('columns') || '3')
@@ -126,26 +137,48 @@ export const FormConfig = () => {
                       <SelectValue placeholder='Equipo' />
                     </SelectTrigger>
                     <SelectContent>
-                      {equipos.map((equipo) => (
-                        <SelectItem
-                          key={equipo.nombreFisico}
-                          value={equipo.nombreFisico}
-                        >
-                          {equipo.nombre}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        <SelectLabel>Equipos</SelectLabel>
+                        {equipos.map((equipo) => (
+                          <SelectItem
+                            key={equipo.nombreFisico}
+                            value={equipo.nombreFisico}
+                          >
+                            {equipo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      {estaciones.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Estaciones de Cocina</SelectLabel>
+                          {estaciones.map((estacion) => (
+                            <SelectItem
+                              key={`estacion:${estacion.estacionCocinaId}`}
+                              value={`estacion:${estacion.estacionCocinaId}`}
+                            >
+                              {estacion.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
                     </SelectContent>
                   </Select>
                 ) : (
                   <p>Cargando equipos...</p>
                 )}
 
-                <Label htmlFor='desglose'>Con Desglose:</Label>
-                <Checkbox
-                  id='desglose'
-                  checked={conDesglose === '1'}
-                  onCheckedChange={(value) => setconDesglose(value ? '1' : '0')}
-                />
+                {!esEstacion && (
+                  <>
+                    <Label htmlFor='desglose'>Con Desglose:</Label>
+                    <Checkbox
+                      id='desglose'
+                      checked={conDesglose === '1'}
+                      onCheckedChange={(value) =>
+                        setconDesglose(value ? '1' : '0')
+                      }
+                    />
+                  </>
+                )}
 
                 <Label htmlFor='columns'>Número de columnas (1-5):</Label>
                 <Select onValueChange={setColumns} value={columns}>
@@ -177,46 +210,52 @@ export const FormConfig = () => {
               </div>
             </div>
 
-            {/* Separador */}
-            <Separator className='my-4' />
+            {!esEstacion && (
+              <>
+                {/* Separador */}
+                <Separator className='my-4' />
 
-            {/* Órdenes en Espera */}
-            <div className='space-y-4'>
-              <h3 className='text-lg font-semibold'>Órdenes en Espera</h3>
-              <div className='grid w-full items-center gap-4'>
-                <Label htmlFor='enableSnooze'>
-                  Habilitar órdenes en espera:
-                </Label>
-                <Checkbox
-                  id='enableSnooze'
-                  checked={enableSnooze === '1'}
-                  onCheckedChange={(value) =>
-                    setEnableSnooze(value ? '1' : '0')
-                  }
-                />
+                {/* Órdenes en Espera */}
+                <div className='space-y-4'>
+                  <h3 className='text-lg font-semibold'>Órdenes en Espera</h3>
+                  <div className='grid w-full items-center gap-4'>
+                    <Label htmlFor='enableSnooze'>
+                      Habilitar órdenes en espera:
+                    </Label>
+                    <Checkbox
+                      id='enableSnooze'
+                      checked={enableSnooze === '1'}
+                      onCheckedChange={(value) =>
+                        setEnableSnooze(value ? '1' : '0')
+                      }
+                    />
 
-                <Label htmlFor='snoozeType'>
-                  Tipo de manejo de órdenes en espera:
-                </Label>
-                <Select
-                  onValueChange={(value: string) =>
-                    setSnoozeType(value as SnoozeType)
-                  }
-                  value={snoozeType}
-                  defaultValue={SnoozeType.separado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Tipo de Snooze' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SnoozeType.separado}>
-                      Separado
-                    </SelectItem>
-                    <SelectItem value={SnoozeType.enCola}>En Cola</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                    <Label htmlFor='snoozeType'>
+                      Tipo de manejo de órdenes en espera:
+                    </Label>
+                    <Select
+                      onValueChange={(value: string) =>
+                        setSnoozeType(value as SnoozeType)
+                      }
+                      value={snoozeType}
+                      defaultValue={SnoozeType.separado}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Tipo de Snooze' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SnoozeType.separado}>
+                          Separado
+                        </SelectItem>
+                        <SelectItem value={SnoozeType.enCola}>
+                          En Cola
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
           <CardFooter className='flex justify-between mt-3'>
             <Button
