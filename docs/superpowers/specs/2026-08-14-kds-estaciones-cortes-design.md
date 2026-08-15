@@ -99,15 +99,24 @@ tambien las estaciones.
 El boton pintar se mantiene identico (PATCH a `/api/ordenes`,
 `KDS_Snooze.Resaltado`). Cambia la respuesta del PATCH al **pintar** (despintar
 sigue silencioso): el servidor recalcula la derivacion y devuelve un resumen que el
-cliente muestra en un dialog (shadcn):
+cliente muestra en `CorteResumenDialog` (rediseñado el mismo 2026-08-14 a pedido
+del usuario):
 
-- Titulo: a que corte entro la orden ("Corte 12:03") o "Esta orden abre el corte
-  de las 12:10" si no cupo en el ultimo.
-- Detalle por estacion del corte donde cayo: `unidades / ocupacion / capacidad`
-  ("Plancha: 25 carnes - 25/25", "Fritura: 12 papas - 12/20").
-- Estado: todo OK / estacion llena / orden sobredimensionada. Con el aviso, el
-  encargado decide si la deja o la despinta y elige otra que quepa.
-- Caso sin configuracion de cocina: "Esta orden no genera trabajo en estaciones".
+- **Header semaforo**: la banda superior toma el color del estado con la paleta
+  del TimerComponent — verde OK, ambar estacion al limite, rojo excedida, gris
+  para "sin trabajo en cocina" — con titulo grande ("CORTE 17:05") y un subtitulo
+  de una linea ("La orden entro a produccion." / "Abre un corte nuevo en cocina."
+  / "No entra completa: revise la carga.").
+- **Filas por estacion**: nombre + unidades a la izquierda; `ocupacion / capacidad`
+  a la derecha en tabular-nums; debajo una **barra de progreso** coloreada por el
+  estado de esa estacion. Capacidad ilimitada se muestra `N / ∞` sin barra, alineada
+  con el formato de las demas filas.
+- **Excedido**: franja roja "Despinte esta orden y elija otra que quepa."
+- **Auto-cierre a los 10 segundos** (`AUTOCIERRE_MS`), anunciado por una barra
+  inferior que se drena en el color del estado; cierre manual con una **X grande
+  de 44px** (touch-friendly, reemplaza a la X chica del shadcn base).
+- Caso sin configuracion de cocina: header gris "Sin trabajo en cocina" con la
+  explicacion.
 
 Las cards pintadas se ven igual que hoy (fondo amarillo). No se muestra numero de
 corte en la card del equipo: el popup es la unica devolucion.
@@ -198,6 +207,25 @@ No hay infraestructura de tests en el repo. Verificacion:
 3. Lado POS: checkbox `MostrarProductos` guarda y la columna se crea sola en una
    base que no la tiene (SQL y Access).
 
+### Verificado en vivo (2026-08-14, browser + BD real)
+
+Smoke ejecutado la misma noche con las dos ordenes de prueba y las estaciones
+Plancha 25 / Fritura 20 / Armado 0:
+
+- /config con los dos grupos; elegir estacion oculta desglose y snooze; el
+  marcador `estacion:N` persiste y la home rutea a la vista estacion.
+- Pintar con configuracion: popup verde con cargas y barras; pintar sin
+  configuracion: popup gris "sin trabajo", no ocupa capacidad.
+- Auto-cierre a los 10 s y cierre con la X verificados.
+- Pantalla Plancha: estado vacio y card "CORTE 17:05 — 1x Carnes" con timer;
+  despintar la vacia al instante.
+- Pantalla de equipo, despachos y snooze identicos a antes del branch (regresion
+  visual cero); consola sin errores.
+
+Pendiente de ver con volumen real: variantes ambar/rojo del popup, cards de
+cortes multiples, y la vista por producto (`MostrarProductos`, requiere marcar el
+checkbox en el ABM del POS).
+
 ## Criterios de aceptacion
 
 1. Una pantalla puede configurarse como equipo (comportamiento actual intacto) o
@@ -231,3 +259,7 @@ No hay infraestructura de tests en el repo. Verificacion:
   torpe en T-SQL y trivial en TS; la query solo trae datos crudos.
 - **Sin realtime nuevo**: se mantiene el polling de 15 s existente; el popup usa
   la respuesta del PATCH, no un canal aparte.
+- **Popup rediseñado con auto-cierre** (pedido del usuario, mismo dia): header
+  semaforo, barras de capacidad, `N / ∞` para ilimitada, X de 44px y auto-cierre
+  a 10 s con barra de drenaje. Se descarto el layout plano original de filas
+  grises.

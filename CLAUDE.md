@@ -38,6 +38,31 @@ Each physical screen is an "equipo" selected on `/config`. Normal equipos map to
 
 `actualizarOrden.ts` also branches on `nombreEquipo.startsWith('DespachoToptech')`: despacho screens update without the printer join, normal screens only update rows matching their printer.
 
+### Kitchen stations and "cortes" (2026-08)
+
+A display can also be a **cocina station** instead of an equipo: `/config` lists active
+`CocinaEstaciones` rows (POS tables `Cocina*`) in a second select group, stored in
+`localStorage.equipo` as the literal marker `estacion:<EstacionCocinaID>`.
+`PantallaPrincipal.tsx` routes the home page: marker → `EstacionView` (passive viewer,
+one card per "corte" with aggregated components, or products when the station has
+`MostrarProductos=1`); anything else → `OrdersPage` unchanged.
+
+A **corte** is derived, never stored: painted orders (`KDS_Snooze.Resaltado=1`) with
+pending items, sorted by hour, greedily packed against station capacities
+(`src/utils/derivarCortes.ts`, pure; sanity script `scripts/test-derivarCortes.ts` run
+via `npx -y tsx`). All data access lives in `src/actions/getCocina.ts` (station list
+with `COL_LENGTH` guard for `MostrarProductos`, load queries, `getResumenPintado`).
+Endpoints: `GET /api/estaciones`, `GET /api/estaciones/carga?estacion=N`. The PATCH
+highlight handler returns `{message, resumen}`; the client shows `CorteResumenDialog`
+(semaforo header, capacity bars, `N / ∞` for unlimited, 10 s auto-close). If the POS
+lacks the `Cocina*` tables everything degrades silently to pre-feature behavior
+(`resumen: null`, empty station list). Design doc:
+`docs/superpowers/specs/2026-08-14-kds-estaciones-cortes-design.md`.
+
+**Gotcha:** never run `npm run build` while `next dev` is serving — both write `.next/`
+and the dev server ends up referencing deleted chunks (blank page, `Cannot find module
+'./NNN.js'`). Kill the server on :3000, delete `.next`, restart.
+
 ### Snooze and highlight
 
 Persisted in the `KDS_Snooze` table (`VisitaID`, `Orden`, `Snoozed`, `Resaltado`) with upsert-style `IF EXISTS` SQL. Two display modes (`SnoozeType` in `src/contants/snoozeType.ts` - note the folder is misspelled "contants", keep it): `separado` returns `{ mainOrders, snoozedOrders }` and shows snoozed orders in a modal; `enCola` (`getOrdenesEnCola.ts`) keeps them in the main list re-ordered to the back. Client detects a snoozed card by `newOrder !== orden`.
