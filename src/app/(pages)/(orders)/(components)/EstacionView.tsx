@@ -112,9 +112,9 @@ export const EstacionView = ({ estacionId }: { estacionId: number }) => {
           className='flex w-auto gap-3 mt-1 px-1 break-inside-avoid'
           columnClassName='masonry-column'
         >
-          {data.cortes.map((corte) => (
+          {data.cortes.map((corte, index) => (
             <Card
-              key={corte.horaInicio}
+              key={`${corte.horaInicio}-${index}`}
               className='relative mb-3 break-inside-avoid overflow-hidden shadow-xl sm:min-h-[20vh]'
               style={{ borderColor: `#${themeColors.primaryBg}` }}
             >

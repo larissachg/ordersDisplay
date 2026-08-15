@@ -335,6 +335,12 @@ export const OrdersPage = () => {
               highlight: !ordenData.resaltado
             })
           })
+          if (!resp.ok) {
+            toast.error('No se pudo aplicar el pintado', {
+              position: 'bottom-center'
+            })
+            return
+          }
           const data = await resp.json().catch(() => null)
           if (!ordenData.resaltado && data?.resumen) {
             // Al pintar, el resumen del corte reemplaza al toast.

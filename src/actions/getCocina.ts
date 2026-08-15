@@ -79,9 +79,12 @@ export async function getEstacionesDb(): Promise<Estacion[]> {
       ...r,
       mostrarProductos: !!r.mostrarProductos
     }))
-  } catch {
-    // Tablas Cocina* ausentes (POS viejo): el modulo entero se apaga en silencio.
-    return []
+  } catch (error) {
+    // 208 = objeto inexistente (tablas Cocina* ausentes, POS viejo): modulo apagado en silencio.
+    const err = error as { number?: number }
+    if (err.number === 208) return []
+    console.error('Error al obtener las estaciones de cocina:', error)
+    throw error
   }
 }
 
@@ -194,7 +197,10 @@ export async function getCargaEstacionDb(
         if (!claves.has(`${p.visitaId}|${p.orden}`)) continue
         items.set(p.producto, (items.get(p.producto) ?? 0) + p.cantidad)
       }
-    } else {
+    }
+    if (items.size === 0) {
+      // Fallback a componentes: hijos de combo computan carga pero no entran
+      // a la vista por producto (config de cocina en el producto hijo).
       for (const f of filas) {
         if (f.estacionCocinaId !== estacionId) continue
         if (!claves.has(`${f.visitaId}|${f.orden}`)) continue
