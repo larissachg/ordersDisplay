@@ -1,9 +1,9 @@
-import { OrdersPage } from "@/app/(pages)/(orders)/(components)/Orders";
+import { PantallaPrincipal } from "@/app/(pages)/(orders)/(components)/PantallaPrincipal";
 
 export default function Home() {
   return (
     <>
-      <OrdersPage />
+      <PantallaPrincipal />
     </>
   );
 }
