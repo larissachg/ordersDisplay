@@ -25,6 +25,8 @@ import {
   DialogTrigger
 } from '../../../../components/ui/dialog'
 import SnoozedOrdersList from './SnoozedOrdersList'
+import { CorteResumenDialog } from '@/components/CorteResumenDialog'
+import { ResumenPintado } from '@/interfaces/Cocina'
 
 const themeColors = {
   primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR ?? '626e78',
@@ -61,6 +63,7 @@ export const OrdersPage = () => {
   const [enableSnooze, setEnableSnooze] = useState('1')
   const [snoozeType, setSnoozeType] = useState<SnoozeType>(SnoozeType.separado)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [corteResumen, setCorteResumen] = useState<ResumenPintado | null>(null)
 
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [snoozedModalOpen, setSnoozedModalOpen] = useState(false)
@@ -323,7 +326,7 @@ export const OrdersPage = () => {
           ordenes.find((o) => o.id === visitaId && o.orden === orden) ??
           snoozedOrdenes.find((o) => o.id === visitaId && o.orden === orden)
         if (ordenData) {
-          await fetch('/api/ordenes', {
+          const resp = await fetch('/api/ordenes', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -332,12 +335,18 @@ export const OrdersPage = () => {
               highlight: !ordenData.resaltado
             })
           })
-          toast.success(
-            ordenData.resaltado ? 'Orden desresaltada' : 'Orden resaltada',
-            {
-              position: 'bottom-center'
-            }
-          )
+          const data = await resp.json().catch(() => null)
+          if (!ordenData.resaltado && data?.resumen) {
+            // Al pintar, el resumen del corte reemplaza al toast.
+            setCorteResumen(data.resumen)
+          } else {
+            toast.success(
+              ordenData.resaltado ? 'Orden desresaltada' : 'Orden resaltada',
+              {
+                position: 'bottom-center'
+              }
+            )
+          }
           await getOrdenes()
         }
       } catch (error) {
@@ -655,6 +664,11 @@ export const OrdersPage = () => {
         onClose={setDetailsDialogOpen}
         orden={activeOrder.orden}
         detalle={activeOrder.detalle}
+      />
+
+      <CorteResumenDialog
+        resumen={corteResumen}
+        onClose={() => setCorteResumen(null)}
       />
     </>
   )

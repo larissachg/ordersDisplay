@@ -4,6 +4,7 @@ import { actualizarOrden } from '@/actions/actualizarOrden'
 import { processOrders } from '@/utils/processOrders'
 import { snoozeOrder, unsnoozeOrder, highlightOrder, unhighlightOrder } from '@/actions/atributosDeOrden'
 import { SnoozeType } from '@/contants/snoozeType'
+import { getResumenPintado } from '@/actions/getCocina'
 
 export async function GET(req: Request) {
   try {
@@ -141,7 +142,14 @@ export async function PATCH(request: Request) {
 
     if (highlight) {
       await highlightOrder(visitaId, orden);
-      return NextResponse.json({ message: 'Orden resaltada exitosamente' }, { status: 200 });
+      let resumen = null;
+      try {
+        resumen = await getResumenPintado(visitaId, orden);
+      } catch (error) {
+        // El pintado ya quedo aplicado; sin resumen el cliente solo omite el popup.
+        console.error('No se pudo calcular el resumen del corte:', error);
+      }
+      return NextResponse.json({ message: 'Orden resaltada exitosamente', resumen }, { status: 200 });
     } else {
       await unhighlightOrder(visitaId, orden);
       return NextResponse.json({ message: 'Orden desresaltada exitosamente' }, { status: 200 });
