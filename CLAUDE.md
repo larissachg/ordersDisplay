@@ -44,18 +44,26 @@ A display can also be a **cocina station** instead of an equipo: `/config` lists
 `CocinaEstaciones` rows (POS tables `Cocina*`) in a second select group, stored in
 `localStorage.equipo` as the literal marker `estacion:<EstacionCocinaID>`.
 `PantallaPrincipal.tsx` routes the home page: marker → `EstacionView` (passive viewer,
-one card per "corte" with aggregated components, or products when the station has
-`MostrarProductos=1`); anything else → `OrdersPage` unchanged.
+one stacked section per "corte": header with the station's aggregate (components, or
+products when `MostrarProductos=1`) + timer, inside one card per pedido always showing
+that station's products (combo children included, counted per `ProductosCombos` row;
+per-pedido fallback to components), plus a grey dashed "En espera" section for orders
+after the last separator); anything else → `OrdersPage` unchanged.
 
-A **corte** is derived, never stored: painted orders (`KDS_Snooze.Resaltado=1`) with
-pending items, sorted by hour, greedily packed against station capacities
-(`src/utils/derivarCortes.ts`, pure; sanity script `scripts/test-derivarCortes.ts` run
-via `npx -y tsx`). All data access lives in `src/actions/getCocina.ts` (station list
-with `COL_LENGTH` guard for `MostrarProductos`, load queries, `getResumenPintado`).
-Endpoints: `GET /api/estaciones`, `GET /api/estaciones/carga?estacion=N`. The PATCH
-highlight handler returns `{message, resumen}`; the client shows `CorteResumenDialog`
-(semaforo header, capacity bars, `N / ∞` for unlimited, 10 s auto-close). If the POS
-lacks the `Cocina*` tables everything degrades silently to pre-feature behavior
+A **corte** is derived, never stored: ALL of today's pending orders sorted by hour,
+where painting (`KDS_Snooze.Resaltado=1`) acts as a **separator** — each painted
+order closes the corte made of itself plus the unpainted orders before it; whatever
+follows the last separator is the "en espera" group (grey dashed card in
+`EstacionView`). Capacity never splits a corte, it only flags `excedido` as a
+warning (`src/utils/derivarCortes.ts`, pure; sanity script
+`scripts/test-derivarCortes.ts` run via `npx -y tsx`). All data access lives in
+`src/actions/getCocina.ts` (station list with `COL_LENGTH` guard for
+`MostrarProductos`, load queries, `getResumenPintado`). Endpoints:
+`GET /api/estaciones`, `GET /api/estaciones/carga?estacion=N`. The PATCH highlight
+handler returns `{message, resumen}` describing the corte the paint just closed
+("Corte cerrado con N órdenes"); the client shows `CorteResumenDialog` (semaforo
+header, capacity bars, `N / ∞` for unlimited, 10 s auto-close). If the POS lacks
+the `Cocina*` tables everything degrades silently to pre-feature behavior
 (`resumen: null`, empty station list). Design doc:
 `docs/superpowers/specs/2026-08-14-kds-estaciones-cortes-design.md`.
 

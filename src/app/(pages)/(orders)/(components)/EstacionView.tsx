@@ -1,24 +1,108 @@
 'use client'
 
-import Masonry from 'react-masonry-css'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import TimerComponent from '@/components/TimerComponent'
 import useSound from 'use-sound'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CargaEstacionResponse } from '@/interfaces/Cocina'
+import { CargaEstacionResponse, CorteEstacion } from '@/interfaces/Cocina'
 import Link from 'next/link'
 
 const themeColors = {
   primaryBg: process.env.NEXT_PUBLIC_PRIMARY_COLOR ?? '626e78'
 }
+const GRIS_ESPERA = '#9ca3af'
 
-// Visor pasivo de una estacion de cocina: una card por corte con el agregado
-// a preparar. Sin checks, sin snooze, sin resaltar. Mismo poll de 15 s del KDS.
+// Visor pasivo de una estacion de cocina: una seccion por corte (header con el
+// agregado + timer, y adentro una card por pedido con lo relevante a la
+// estacion), mas la seccion "En espera" con lo aun no cortado. Sin checks, sin
+// snooze, sin resaltar. Mismo poll de 15 s del KDS.
+const SeccionGrupo = ({
+  grupo,
+  titulo,
+  color,
+  columnas,
+  punteada = false
+}: {
+  grupo: CorteEstacion
+  titulo: string
+  color: string
+  columnas: number
+  punteada?: boolean
+}) => (
+  <section
+    className={`overflow-hidden rounded-xl border-2 shadow-xl ${
+      punteada ? 'border-dashed' : ''
+    }`}
+    style={{ borderColor: color }}
+  >
+    <div
+      className='flex flex-wrap items-center justify-between gap-2 px-4 py-3'
+      style={{ backgroundColor: color }}
+    >
+      <div className='flex min-w-0 flex-wrap items-center gap-2'>
+        <p className='mr-2 text-3xl font-bold uppercase text-white'>{titulo}</p>
+        {grupo.items.map((item) => (
+          <span
+            key={item.nombre}
+            className='whitespace-nowrap rounded-full bg-white/20 px-3 py-0.5 text-xl font-semibold capitalize text-white'
+          >
+            {item.cantidad}x {item.nombre}
+          </span>
+        ))}
+      </div>
+      <TimerComponent startTime={grupo.horaInicio.replace('Z', '')} />
+    </div>
+    <div
+      className='grid gap-3 p-3'
+      style={{ gridTemplateColumns: `repeat(${columnas}, minmax(0, 1fr))` }}
+    >
+      {grupo.pedidos.map((pedido) => (
+        <Card
+          key={`${pedido.visitaId}|${pedido.orden}`}
+          className='break-inside-avoid shadow-md'
+          style={{ borderColor: color }}
+        >
+          <CardContent className='flex items-start gap-3 p-3'>
+            <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2c3236] text-2xl font-bold text-white'>
+              {pedido.orden}
+            </div>
+            <ul className='min-w-0 flex-1'>
+              {pedido.items.map((item) => (
+                <li
+                  key={`${item.nombre}|${item.observacion ?? ''}`}
+                  className='flex items-start gap-2.5 py-1'
+                >
+                  <span
+                    className='flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md px-1.5 text-2xl font-bold text-white'
+                    style={{ backgroundColor: color }}
+                  >
+                    {item.cantidad}
+                  </span>
+                  <div className='min-w-0'>
+                    <span className='text-2xl font-semibold capitalize leading-7'>
+                      {item.nombre}
+                    </span>
+                    {item.observacion && (
+                      <p className='text-xl font-semibold leading-6'>
+                        - {item.observacion}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </section>
+)
+
 export const EstacionView = ({ estacionId }: { estacionId: number }) => {
   const [data, setData] = useState<CargaEstacionResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [columns, setColumns] = useState('3')
+  const [columnas, setColumnas] = useState(3)
   const [playNewOrder] = useSound('/sounds/neworder.mp3')
   const cortesPrevios = useRef(0)
 
@@ -44,7 +128,8 @@ export const EstacionView = ({ estacionId }: { estacionId: number }) => {
   }, [estacionId, playNewOrder])
 
   useEffect(() => {
-    setColumns(localStorage.getItem('columns') ?? '3')
+    // Misma configuracion 3x3 / 4x4 de /config que la pantalla principal.
+    setColumnas(parseInt(localStorage.getItem('columns') ?? '3') || 3)
     getCarga()
     const interval = setInterval(getCarga, 15000)
     return () => clearInterval(interval)
@@ -85,62 +170,39 @@ export const EstacionView = ({ estacionId }: { estacionId: number }) => {
     )
   }
 
-  const breakpointColumns = {
-    default: parseInt(columns),
-    1100: Math.max(2, parseInt(columns) - 1),
-    700: 1
-  }
-
   return (
     <>
-      <div
-        className='fixed top-2 right-2 z-10 px-4 py-1 rounded-full text-white text-xl font-bold shadow-lg'
-        style={{ backgroundColor: `#${themeColors.primaryBg}` }}
-      >
-        {data?.estacion?.nombre}
-      </div>
-
-      {!data || data.cortes.length === 0 ? (
+      {!data || (data.cortes.length === 0 && data.enEspera === null) ? (
         <div className='flex items-center justify-center h-[90vh]'>
           <h2 className='text-xl sm:text-4xl lg:text-7xl font-bold text-gray-500'>
             Sin trabajo pendiente.
           </h2>
         </div>
       ) : (
-        <Masonry
-          breakpointCols={breakpointColumns}
-          className='flex w-auto gap-3 mt-1 px-1 break-inside-avoid'
-          columnClassName='masonry-column'
-        >
+        <div className='mt-2 flex flex-col gap-4 px-1 pb-4'>
           {data.cortes.map((corte, index) => (
-            <Card
+            <SeccionGrupo
               key={`${corte.horaInicio}-${index}`}
-              className='relative mb-3 break-inside-avoid overflow-hidden shadow-xl sm:min-h-[20vh]'
-              style={{ borderColor: `#${themeColors.primaryBg}` }}
-            >
-              <CardHeader
-                style={{ backgroundColor: `#${themeColors.primaryBg}` }}
-              >
-                <div className='flex justify-between border-b-[1px] p-2 items-center'>
-                  <p className='text-3xl font-bold uppercase text-white'>
-                    Corte {corte.horaEtiqueta}
-                  </p>
-                  <TimerComponent startTime={corte.horaInicio.replace('Z', '')} />
-                </div>
-              </CardHeader>
-              <CardContent className='flex-1 min-h-20 pt-3'>
-                {corte.items.map((item) => (
-                  <h2
-                    key={item.nombre}
-                    className='font-bold text-4xl leading-10 py-1 px-2 capitalize'
-                  >
-                    {item.cantidad}x {item.nombre}
-                  </h2>
-                ))}
-              </CardContent>
-            </Card>
+              grupo={corte}
+              titulo={
+                data.estacion?.mostrarProductos
+                  ? corte.horaEtiqueta
+                  : `Corte ${corte.horaEtiqueta}`
+              }
+              color={`#${themeColors.primaryBg}`}
+              columnas={columnas}
+            />
           ))}
-        </Masonry>
+          {data.enEspera && (
+            <SeccionGrupo
+              grupo={data.enEspera}
+              titulo='En espera'
+              color={GRIS_ESPERA}
+              columnas={columnas}
+              punteada
+            />
+          )}
+        </div>
       )}
     </>
   )

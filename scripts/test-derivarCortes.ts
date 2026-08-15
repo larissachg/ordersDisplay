@@ -1,5 +1,7 @@
 // Sanidad de derivarCortes. Correr con: npx -y tsx scripts/test-derivarCortes.ts
 // No hay test runner en el repo; node:assert alcanza para la unica pieza algoritmica.
+// Semantica: el pintado actua de separador. Cada orden pintada cierra el corte que
+// la incluye a ella y a las no pintadas anteriores; el resto queda "en espera".
 import assert from 'node:assert/strict'
 import { derivarCortes } from '../src/utils/derivarCortes'
 import { EstacionCapacidad, OrdenCarga } from '../src/interfaces/Cocina'
@@ -8,7 +10,7 @@ const PLANCHA = 1
 const FRITURA = 2
 const ARMADO = 3
 const estaciones: EstacionCapacidad[] = [
-  { estacionCocinaId: PLANCHA, capacidad: 25 },
+  { estacionCocinaId: PLANCHA, capacidad: 3 },
   { estacionCocinaId: FRITURA, capacidad: 20 },
   { estacionCocinaId: ARMADO, capacidad: 0 }
 ]
@@ -16,88 +18,138 @@ const estaciones: EstacionCapacidad[] = [
 const orden = (
   visitaId: number,
   hora: string,
-  ocupacion: Record<number, number>
+  ocupacion: Record<number, number>,
+  resaltado = false
 ): OrdenCarga => ({
   visitaId,
   orden: 1,
   horaEfectiva: `2026-08-14T${hora}:00.000Z`,
+  resaltado,
   ocupacionPorEstacion: ocupacion
 })
 
-// 1. Dos ordenes llenan la plancha justo: un solo corte, etiqueta de la mas vieja.
+// 1. Escenario base: 5 ordenes de 1 carne, pintadas la 3ra y la 5ta.
+//    Corte 1 = {1,2,3} (3 carnes), corte 2 = {4,5} (2 carnes), nada en espera.
 {
-  const cortes = derivarCortes(
-    [orden(2, '12:05', { [PLANCHA]: 10 }), orden(1, '12:03', { [PLANCHA]: 15 })],
-    estaciones
-  )
-  assert.equal(cortes.length, 1)
-  assert.equal(cortes[0].horaEtiqueta, '12:03')
-  assert.equal(cortes[0].ocupacionPorEstacion[PLANCHA], 25)
-  assert.equal(cortes[0].excedido, false)
-  assert.deepEqual(cortes[0].ordenes[0], { visitaId: 1, orden: 1 })
-}
-
-// 2. La tercera no cabe: abre el segundo corte con su propia hora.
-{
-  const cortes = derivarCortes(
+  const { cortes, enEspera } = derivarCortes(
     [
-      orden(1, '12:03', { [PLANCHA]: 15 }),
-      orden(2, '12:05', { [PLANCHA]: 10 }),
-      orden(3, '12:10', { [PLANCHA]: 5 })
+      orden(1, '12:01', { [PLANCHA]: 1 }),
+      orden(2, '12:02', { [PLANCHA]: 1 }),
+      orden(3, '12:03', { [PLANCHA]: 1 }, true),
+      orden(4, '12:04', { [PLANCHA]: 1 }),
+      orden(5, '12:05', { [PLANCHA]: 1 }, true)
     ],
     estaciones
   )
   assert.equal(cortes.length, 2)
-  assert.equal(cortes[1].horaEtiqueta, '12:10')
-  assert.equal(cortes[1].ocupacionPorEstacion[PLANCHA], 5)
+  assert.deepEqual(
+    cortes[0].ordenes.map((o) => o.visitaId),
+    [1, 2, 3]
+  )
+  assert.equal(cortes[0].ocupacionPorEstacion[PLANCHA], 3)
+  assert.equal(cortes[0].horaEtiqueta, '12:01')
+  assert.equal(cortes[0].excedido, false)
+  assert.deepEqual(
+    cortes[1].ordenes.map((o) => o.visitaId),
+    [4, 5]
+  )
+  assert.equal(cortes[1].ocupacionPorEstacion[PLANCHA], 2)
+  assert.equal(cortes[1].horaEtiqueta, '12:04')
+  assert.equal(enEspera, null)
 }
 
-// 3. Capacidad 0 nunca limita.
+// 2. Nada pintado: cero cortes, todo en espera.
 {
-  const cortes = derivarCortes(
-    [orden(1, '12:00', { [ARMADO]: 500 }), orden(2, '12:01', { [ARMADO]: 500 })],
+  const { cortes, enEspera } = derivarCortes(
+    [orden(1, '12:00', { [PLANCHA]: 1 }), orden(2, '12:01', { [PLANCHA]: 1 })],
     estaciones
   )
-  assert.equal(cortes.length, 1)
-}
-
-// 4. Orden sin configuracion de cocina: no ocupa ni abre cortes.
-{
-  const cortes = derivarCortes([orden(1, '12:00', {})], estaciones)
   assert.equal(cortes.length, 0)
+  assert.equal(enEspera?.ordenes.length, 2)
+  assert.equal(enEspera?.ocupacionPorEstacion[PLANCHA], 2)
+  assert.equal(enEspera?.horaEtiqueta, '12:00')
 }
 
-// 5. Sobredimensionada: corte propio marcado excedido.
+// 3. La capacidad no divide: un solo corte marcado excedido (advertencia).
 {
-  const cortes = derivarCortes(
-    [orden(1, '12:00', { [PLANCHA]: 10 }), orden(2, '12:01', { [PLANCHA]: 30 })],
+  const { cortes, enEspera } = derivarCortes(
+    [
+      orden(1, '12:00', { [PLANCHA]: 2 }),
+      orden(2, '12:01', { [PLANCHA]: 2 }),
+      orden(3, '12:02', { [PLANCHA]: 1 }, true)
+    ],
     estaciones
   )
-  assert.equal(cortes.length, 2)
-  assert.equal(cortes[0].excedido, false)
-  assert.equal(cortes[1].excedido, true)
+  assert.equal(cortes.length, 1)
+  assert.equal(cortes[0].ocupacionPorEstacion[PLANCHA], 5)
+  assert.equal(cortes[0].excedido, true)
+  assert.equal(enEspera, null)
 }
 
-// 6. Multi-estacion: no cabe si excede en UNA sola de sus estaciones.
+// 4. Pintadas consecutivas en el medio: cortes {1,2}, {3}, espera {4}.
 {
-  const cortes = derivarCortes(
+  const { cortes, enEspera } = derivarCortes(
     [
-      orden(1, '12:00', { [PLANCHA]: 5, [FRITURA]: 10 }),
-      orden(2, '12:01', { [PLANCHA]: 10, [FRITURA]: 15 }) // Plancha cabria, Fritura no
+      orden(1, '12:00', { [PLANCHA]: 1 }),
+      orden(2, '12:01', { [PLANCHA]: 1 }, true),
+      orden(3, '12:02', { [PLANCHA]: 1 }, true),
+      orden(4, '12:03', { [PLANCHA]: 1 })
     ],
     estaciones
   )
   assert.equal(cortes.length, 2)
+  assert.deepEqual(cortes[0].ordenes.map((o) => o.visitaId), [1, 2])
+  assert.deepEqual(cortes[1].ordenes.map((o) => o.visitaId), [3])
+  assert.equal(cortes[1].horaEtiqueta, '12:02')
+  assert.deepEqual(enEspera?.ordenes.map((o) => o.visitaId), [4])
 }
 
-// 7. Desempate estable a hora igual: por visitaId.
+// 5. Orden sin configuracion de cocina pintada: igual separa, sin sumar carga.
 {
-  const cortes = derivarCortes(
-    [orden(9, '12:00', { [PLANCHA]: 20 }), orden(1, '12:00', { [PLANCHA]: 20 })],
+  const { cortes, enEspera } = derivarCortes(
+    [orden(1, '12:00', { [PLANCHA]: 2 }), orden(2, '12:01', {}, true)],
     estaciones
   )
-  assert.deepEqual(cortes[0].ordenes[0], { visitaId: 1, orden: 1 })
-  assert.equal(cortes.length, 2)
+  assert.equal(cortes.length, 1)
+  assert.deepEqual(cortes[0].ordenes.map((o) => o.visitaId), [1, 2])
+  assert.equal(cortes[0].ocupacionPorEstacion[PLANCHA], 2)
+  assert.equal(enEspera, null)
 }
 
-console.log('derivarCortes: 7/7 casos OK')
+// 6. Capacidad 0 (ilimitada) nunca marca excedido.
+{
+  const { cortes } = derivarCortes(
+    [orden(1, '12:00', { [ARMADO]: 500 }, true)],
+    estaciones
+  )
+  assert.equal(cortes.length, 1)
+  assert.equal(cortes[0].excedido, false)
+}
+
+// 7. Desempate estable a hora igual: por visitaId; el orden decide quien entra al corte.
+{
+  const { cortes, enEspera } = derivarCortes(
+    [
+      orden(9, '12:00', { [PLANCHA]: 1 }),
+      orden(1, '12:00', { [PLANCHA]: 1 }, true)
+    ],
+    estaciones
+  )
+  assert.equal(cortes.length, 1)
+  assert.deepEqual(cortes[0].ordenes.map((o) => o.visitaId), [1])
+  assert.deepEqual(enEspera?.ordenes.map((o) => o.visitaId), [9])
+}
+
+// 8. El grupo en espera tambien avisa si ya excede la capacidad.
+{
+  const { enEspera } = derivarCortes(
+    [
+      orden(1, '12:00', { [PLANCHA]: 2 }),
+      orden(2, '12:01', { [PLANCHA]: 2 })
+    ],
+    estaciones
+  )
+  assert.equal(enEspera?.excedido, true)
+}
+
+console.log('derivarCortes: 8/8 casos OK')

@@ -60,15 +60,15 @@ export const CorteResumenDialog = ({
     ? AMBAR
     : VERDE
 
+  const n = resumen?.cantidadOrdenes ?? 0
+  const ordenesTxt = `${n} ${n === 1 ? 'orden' : 'órdenes'}`
   const subtitulo = sinTrabajo
-    ? 'Esta orden no genera trabajo en estaciones.'
+    ? 'El corte no genera trabajo en estaciones.'
     : excedido
-    ? 'No entra completa: revise la carga.'
-    : resumen?.abreCorteNuevo
-    ? 'Abre un corte nuevo en cocina.'
+    ? `Corte de ${ordenesTxt}: excede la capacidad.`
     : alLimite
-    ? 'Entró y la estación quedó al límite.'
-    : 'La orden entró a producción.'
+    ? `Corte de ${ordenesTxt}; la estación quedó al límite.`
+    : `Corte cerrado con ${ordenesTxt}.`
 
   return (
     <Dialog
@@ -105,8 +105,8 @@ export const CorteResumenDialog = ({
         {sinTrabajo ? (
           <div className='bg-white px-6 py-6 text-[#2c3236]'>
             <p className='text-2xl font-semibold'>
-              Quedó pintada, pero ningún producto tiene componentes de cocina
-              configurados.
+              El corte quedó marcado, pero ningún producto tiene componentes de
+              cocina configurados.
             </p>
           </div>
         ) : (
@@ -161,7 +161,7 @@ export const CorteResumenDialog = ({
                 className='mb-1 mt-3 rounded-lg px-4 py-3 text-xl font-bold text-white'
                 style={{ backgroundColor: ROJO }}
               >
-                Despinte esta orden y elija otra que quepa.
+                Excede la capacidad: puede despintar y cortar antes.
               </div>
             )}
           </div>

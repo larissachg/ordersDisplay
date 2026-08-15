@@ -1,13 +1,20 @@
 // Import relativo a proposito: el script de sanidad corre con npx tsx fuera de Next.
-import { Corte, EstacionCapacidad, OrdenCarga } from '../interfaces/Cocina'
+import {
+  Corte,
+  DerivacionCortes,
+  EstacionCapacidad,
+  OrdenCarga
+} from '../interfaces/Cocina'
 
-// Llenado greedy secuencial: cada orden pintada pendiente entra al corte en
-// construccion si cabe entera en TODAS sus estaciones con capacidad; si no,
-// abre el corte siguiente. Deterministico: mismo input, mismos cortes.
+// El pintado actua de separador: recorriendo las pendientes por hora, cada orden
+// pintada cierra el corte que la incluye a ella y a las no pintadas anteriores.
+// Lo posterior al ultimo separador queda "en espera". La capacidad no divide
+// cortes; solo marca excedido como advertencia. Deterministico: mismo input,
+// mismos cortes.
 export function derivarCortes(
   ordenes: OrdenCarga[],
   estaciones: EstacionCapacidad[]
-): Corte[] {
+): DerivacionCortes {
   const capacidades = new Map(
     estaciones.map((e) => [e.estacionCocinaId, e.capacidad])
   )
@@ -19,43 +26,8 @@ export function derivarCortes(
     return a.orden - b.orden
   })
 
-  const cortes: Corte[] = []
-  let actual: Corte | null = null
-
-  for (const ordenCarga of ordenadas) {
-    const entradas = Object.entries(ordenCarga.ocupacionPorEstacion)
-    if (entradas.length === 0) continue // sin configuracion de cocina
-
-    const cabe =
-      actual !== null &&
-      entradas.every(([estacionId, ocupacion]) => {
-        const capacidad = capacidades.get(Number(estacionId)) ?? 0
-        if (capacidad === 0) return true
-        const acumulada = actual!.ocupacionPorEstacion[Number(estacionId)] ?? 0
-        return acumulada + ocupacion <= capacidad
-      })
-
-    if (!cabe) {
-      actual = {
-        horaEtiqueta: ordenCarga.horaEfectiva.substring(11, 16),
-        horaInicio: ordenCarga.horaEfectiva,
-        ordenes: [],
-        ocupacionPorEstacion: {},
-        excedido: false
-      }
-      cortes.push(actual)
-    }
-
-    actual!.ordenes.push({
-      visitaId: ordenCarga.visitaId,
-      orden: ordenCarga.orden
-    })
-    for (const [estacionId, ocupacion] of entradas) {
-      const id = Number(estacionId)
-      actual!.ocupacionPorEstacion[id] =
-        (actual!.ocupacionPorEstacion[id] ?? 0) + ocupacion
-    }
-    actual!.excedido = Object.entries(actual!.ocupacionPorEstacion).some(
+  const marcarExcedido = (corte: Corte) => {
+    corte.excedido = Object.entries(corte.ocupacionPorEstacion).some(
       ([estacionId, ocupacion]) => {
         const capacidad = capacidades.get(Number(estacionId)) ?? 0
         return capacidad > 0 && ocupacion > capacidad
@@ -63,5 +35,39 @@ export function derivarCortes(
     )
   }
 
-  return cortes
+  const cortes: Corte[] = []
+  let actual: Corte | null = null
+
+  for (const ordenCarga of ordenadas) {
+    if (actual === null) {
+      actual = {
+        horaEtiqueta: ordenCarga.horaEfectiva.substring(11, 16),
+        horaInicio: ordenCarga.horaEfectiva,
+        ordenes: [],
+        ocupacionPorEstacion: {},
+        excedido: false
+      }
+    }
+
+    actual.ordenes.push({
+      visitaId: ordenCarga.visitaId,
+      orden: ordenCarga.orden
+    })
+    for (const [estacionId, ocupacion] of Object.entries(
+      ordenCarga.ocupacionPorEstacion
+    )) {
+      const id = Number(estacionId)
+      actual.ocupacionPorEstacion[id] =
+        (actual.ocupacionPorEstacion[id] ?? 0) + ocupacion
+    }
+
+    if (ordenCarga.resaltado) {
+      marcarExcedido(actual)
+      cortes.push(actual)
+      actual = null
+    }
+  }
+
+  if (actual !== null) marcarExcedido(actual)
+  return { cortes, enEspera: actual }
 }

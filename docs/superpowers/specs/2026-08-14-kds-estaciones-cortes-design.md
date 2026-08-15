@@ -1,6 +1,8 @@
 # Pantallas-estacion y cortes por pintado en el KDS
 
 Fecha: 2026-08-14
+Revision 2026-08-15: el pintado paso de "meter la orden a produccion" a **separador
+de cortes** (ver regla de derivacion); la capacidad quedo como advertencia.
 Contraparte POS: `Restotech\docs\superpowers\specs\2026-08-14-cocina-estaciones-componentes-design.md`
 (modulo Cocina* ya implementado y probado en el POS el 2026-08-14).
 
@@ -22,18 +24,19 @@ No se agrega ninguna tabla, columna ni numero de secuencia del lado KDS. El cort
 **deriva** en cada consulta a partir de estado que ya existe:
 
 - **Pintar una orden** (`KDS_Snooze.Resaltado = 1`, el boton balde amarillo de hoy)
-  es meterla en produccion. No hay boton extra ni paso de confirmacion.
+  es **cortar ahi**: cierra el corte que la incluye a ella y a todas las ordenes no
+  pintadas anteriores por hora. No hay boton extra ni paso de confirmacion.
 - **Despachar** (check verde de siempre, `DetalleCuenta.Terminado`) la saca de la
   produccion. Las ordenes despachadas y los items borrados **no computan**.
-- Los cortes son el resultado de un calculo deterministico sobre las ordenes
-  pintadas pendientes (ver regla de derivacion).
+- Los cortes son el resultado de un calculo deterministico sobre **todas** las
+  ordenes pendientes del dia (ver regla de derivacion).
 
 ### Regla de derivacion de cortes
 
-1. **Universo**: ordenes de hoy (ventana `startOfToday..startOfTomorrow`,
-   `America/La_Paz`, igual que el resto del KDS) que esten pintadas
-   (`Resaltado = 1`) y tengan al menos un item pendiente (sin `Terminado`, no
-   borrado). Identidad de orden: par `(VisitaID, Orden)` como en todo el KDS.
+1. **Universo**: TODAS las ordenes de hoy (ventana `startOfToday..startOfTomorrow`,
+   `America/La_Paz`, igual que el resto del KDS) con al menos un item pendiente
+   (sin `Terminado`, no borrado), pintadas o no. Identidad de orden: par
+   `(VisitaID, Orden)` como en todo el KDS.
 2. **Carga de una orden por estacion**: por cada item pendiente,
    `unidades = cantidad vendida x Cantidad del componente` y
    `ocupacion = unidades x Espacios del componente`. Se suma por
@@ -44,33 +47,39 @@ No se agrega ninguna tabla, columna ni numero de secuencia del lado KDS. El cort
 3. **Orden de llenado**: las ordenes se ordenan por
    `MIN(COALESCE(HoraRecoger, Hora))` del par, con desempate por
    `(VisitaID, Orden)` para que el calculo sea estable.
-4. **Llenado greedy secuencial**: cada orden entra al corte en construccion si,
-   para **todas** las estaciones con `Capacidad > 0`,
-   `ocupacion acumulada del corte + ocupacion de la orden <= Capacidad`. Si no
-   cabe, cierra ese corte y abre el siguiente con esta orden. Las ordenes son
-   atomicas: nunca se parten entre cortes.
-5. **Orden sobredimensionada**: si una orden sola excede la capacidad de alguna
-   estacion (30 carnes con plancha de 25), ocupa un corte propio con exceso
-   visible. La cocina decide como partirla; el popup lo avisa.
-6. **Etiqueta del corte**: no hay numero; la card se titula con la hora del pedido
+4. **Pintado como separador**: recorriendo las ordenes en ese orden, cada orden
+   pintada (`Resaltado = 1`) cierra el corte que la incluye a ella y a las no
+   pintadas acumuladas desde el separador anterior. Las ordenes son atomicas:
+   nunca se parten entre cortes.
+5. **En espera**: las ordenes posteriores al ultimo separador no pertenecen a
+   ningun corte; la pantalla-estacion las muestra agrupadas como carga entrante
+   ("En espera", card gris punteada).
+6. **Capacidad como advertencia**: la capacidad nunca divide ni bloquea un corte.
+   Si la carga del corte (o del grupo en espera) supera la `Capacidad` de alguna
+   estacion, se marca `excedido` y el popup/semaforo lo avisa en rojo; el
+   encargado decide si despinta y corta antes.
+7. **Etiqueta del corte**: no hay numero; la card se titula con la hora del pedido
    mas viejo del corte, formato `HH:mm` ("Corte 12:03").
-7. **Estaciones**: solo computan y se muestran las estaciones con `Activo = 1`,
+8. **Estaciones**: solo computan y se muestran las estaciones con `Activo = 1`,
    ordenadas por `Orden` (empates por nombre). Los **componentes inactivos siguen
    computando**: la relacion producto-componente vigente representa trabajo real
    hasta que el POS la quite (decision alineada con la spec del POS).
-8. `Capacidad = 0` = ilimitada: esa estacion nunca corta el llenado.
+9. `Capacidad = 0` = ilimitada: esa estacion nunca marca excedido.
 
 ### Consecuencias aceptadas a conciencia
 
-- Al despachar ordenes del corte activo se libera espacio y las ordenes del corte
-  siguiente **suben solas** en el proximo recalculo: la card de la estacion siempre
-  responde "que deberia estar en la plancha ahora".
-- Si el encargado pinta salteado (pinta una orden vieja despues de una nueva) o
-  despinta una orden del medio, los cortes se redistribuyen. Con pintado FIFO
-  normal no pasa.
-- Pintar una orden sin configuracion de cocina la marca amarilla como siempre, no
-  ocupa capacidad ni abre cortes; el popup avisa que no genera trabajo en
-  estaciones.
+- Las ordenes despachadas salen del universo en el proximo recalculo: los cortes
+  se achican y, si el separador de un corte se despacha, ese corte se fusiona con
+  el siguiente. La card de la estacion siempre responde "que deberia estar en la
+  plancha ahora".
+- Pintar una orden del medio (o despintarla) redistribuye los cortes: cada
+  separador cierra lo acumulado hasta el. Con pintado FIFO normal el efecto es el
+  intuitivo.
+- Una orden nueva cuya hora efectiva cae antes de un separador existente entra a
+  ese corte ya cerrado (los cortes son derivados, no congelados).
+- Pintar una orden sin configuracion de cocina la marca amarilla como siempre y
+  actua de separador; si el corte resultante no tiene carga, el popup avisa que no
+  genera trabajo en estaciones y ninguna pantalla-estacion lo muestra.
 
 ## Componentes
 
@@ -126,15 +135,27 @@ corte en la card del equipo: el popup es la unica devolucion.
 Cuando `localStorage.equipo` es `estacion:N`, la pagina principal renderiza la
 vista estacion en lugar de `Orders`:
 
-- Mismo lenguaje visual: masonry de cards, header gris, mismos colores y fuentes.
-- **Una card por corte** (solo cortes con carga pendiente en **esta** estacion),
-  ordenadas por hora. Titulo "Corte HH:mm" + el timer semaforo de siempre
-  (`TimerComponent`) corriendo desde la hora del pedido mas viejo del corte.
-- Contenido segun la estacion:
-  - Normal: componentes pendientes agregados ("25x Carne", "2x Carnesota").
-  - `MostrarProductos = 1`: productos pendientes agregados
-    ("5x 1/4 DE LIBRA SPL", "5x AMERICANA DOBLE") de las ordenes del corte con al
-    menos un componente en esta estacion.
+- Mismo lenguaje visual: mismos colores y fuentes que el resto del KDS.
+- **Una seccion por corte** (solo cortes con carga pendiente en **esta**
+  estacion), ordenadas por hora, apiladas verticalmente (revision 2026-08-15;
+  reemplaza al masonry de cards de corte). El header de la seccion lleva
+  "Corte HH:mm", el agregado del corte inline y el timer semaforo de siempre
+  (`TimerComponent`) desde la hora del pedido mas viejo. Adentro, una **card por
+  pedido** (grilla `auto-fill`) con el numero de orden de la pantalla principal.
+- Al final, la seccion gris punteada **"En espera"** con los pedidos posteriores
+  al ultimo separador, mismo formato.
+- Las **cards de pedido siempre muestran productos** ("1x 1/4 DE LIBRA SPL"): el
+  cocinero tiene que saber a que hamburguesa va su componente. Los hijos de combo
+  entran a la vista por producto (revision 2026-08-15; antes quedaban fuera),
+  contando 1 por fila de `ProductosCombos` igual que la carga. Fallback por
+  pedido a componentes si un producto con carga no aparece.
+- Las **observaciones** (`Observaciones.DetalleCuentaID`; en el hijo de combo, la
+  de su linea padre) salen debajo del producto en la card de pedido, y las lineas
+  con observaciones distintas **no se agrupan** entre si. El agregado del header
+  suma por nombre, sin abrir por observacion.
+- El **agregado del header** segun la estacion:
+  - Normal: componentes pendientes ("25x Carne"), la carga real de la estacion.
+  - `MostrarProductos = 1`: productos pendientes ("5x 1/4 DE LIBRA SPL").
 - **Visor pasivo**: sin checks, sin snooze, sin resaltar, sin dialogs.
 - Polling de 15 segundos como el resto del KDS. Sonido `neworder.mp3` cuando
   aparece una card de corte nueva (misma heuristica de comparar cantidad).
@@ -145,17 +166,18 @@ vista estacion en lugar de `Orders`:
 
 ### 4. API y modulo de calculo
 
-- **Un solo modulo servidor** (`src/actions/cortes.ts` o similar) implementa la
-  derivacion completa: query SQL (pintadas pendientes + JOINs a `DetalleCuenta`,
+- **Un solo modulo servidor** (`src/actions/getCocina.ts`) implementa la
+  derivacion completa: query SQL (pendientes del dia + JOINs a `DetalleCuenta`,
   `Productos`, `ProductosCombos`, `CocinaComponentesProductos`,
-  `CocinaComponentes`, `CocinaEstaciones`) + llenado greedy en TypeScript. El
-  greedy no se hace en SQL.
+  `CocinaComponentes`, `CocinaEstaciones`, flag `Resaltado` de `KDS_Snooze`) +
+  particion por separadores en TypeScript (`src/utils/derivarCortes.ts`). La
+  particion no se hace en SQL.
 - Lo consumen dos entradas:
   - `GET /api/estaciones/carga?estacion=N`: cortes con la carga de esa estacion
-    (lo pollea la pantalla-estacion). Incluye la variante por producto cuando
-    `MostrarProductos = 1`.
+    mas el grupo `enEspera` (lo pollea la pantalla-estacion). Incluye la variante
+    por producto cuando `MostrarProductos = 1`.
   - El PATCH de resaltar en `/api/ordenes`: tras escribir `Resaltado`, recalcula y
-    devuelve el resumen del corte donde cayo la orden para el popup.
+    devuelve el resumen del corte que el pintado cerro para el popup.
 - `GET /api/estaciones` (o extension de `/api/equipos`): lista de estaciones
   activas para /config.
 - Deteccion de tablas `Cocina*`: una verificacion barata (sondeo tipo
@@ -192,16 +214,16 @@ No hay infraestructura de tests en el repo. Verificacion:
    Papas / 1 Armado; Doble con 2 Carnes; Carnesota con Espacios 2):
    - /config muestra los dos grupos; elegir una estacion y volver: el marcador
      `estacion:N` persiste.
-   - Pintar ordenes hasta llenar la Plancha: el popup muestra la carga y avisa
-     cuando una orden abre el corte siguiente.
-   - La pantalla Plancha muestra cards por corte con componentes agregados; la
-     pantalla Armado muestra productos.
-   - Despachar ordenes del primer corte: la card baja y las ordenes del corte
-     siguiente suben al liberarse espacio.
-   - Despintar una orden: desaparece del calculo sin popup.
-   - Orden sin configuracion de cocina: popup "no genera trabajo", no ocupa
-     capacidad.
-   - Orden sobredimensionada: corte propio con exceso avisado.
+   - Pintar una orden cierra el corte con ella y las no pintadas anteriores; el
+     popup muestra la carga del corte cerrado ("Corte cerrado con N ordenes").
+   - La pantalla Plancha muestra cards por corte con componentes agregados mas la
+     card gris "En espera"; la pantalla Armado muestra productos.
+   - Despachar ordenes de un corte: la card se achica; despachar el separador
+     fusiona el corte con el siguiente.
+   - Despintar una orden: su corte se fusiona con el siguiente (o pasa a espera).
+   - Orden sin configuracion de cocina pintada: separa igual; si el corte no tiene
+     carga, popup "no genera trabajo".
+   - Corte que excede capacidad: sigue siendo uno solo, marcado excedido en rojo.
    - Base sin tablas `Cocina*`: /config sin grupo Estaciones, pintado sin popup,
      cero errores.
 3. Lado POS: checkbox `MostrarProductos` guarda y la columna se crea sola en una
@@ -226,28 +248,41 @@ Pendiente de ver con volumen real: variantes ambar/rojo del popup, cards de
 cortes multiples, y la vista por producto (`MostrarProductos`, requiere marcar el
 checkbox en el ABM del POS).
 
+### Verificado en vivo (2026-08-15, BD real, semantica separador)
+
+Con 5 ordenes pendientes de 1 hamburguesa cada una (una via combo
+"COMBO SPL + BEBIDA") y pintadas la 3ra y la 5ta: Plancha muestra
+"Corte 3x Carnes" + "Corte 2x Carnes" sin grupo en espera; el hijo de combo
+computa su carne. Resumen del PATCH con `cantidadOrdenes` 3 y 2.
+
 ## Criterios de aceptacion
 
 1. Una pantalla puede configurarse como equipo (comportamiento actual intacto) o
    como estacion de cocina, con distincion clara en /config.
-2. Pintar una orden la mete en produccion sin pasos extra y dispara el popup con
-   la carga por estacion del corte donde cayo, validada contra capacidades.
+2. Pintar una orden cierra un corte sin pasos extra y dispara el popup con la
+   carga por estacion del corte cerrado, contrastada contra capacidades como
+   advertencia.
 3. Los cortes se derivan solos: sin tablas, columnas ni numeros nuevos en el KDS.
 4. La pantalla-estacion muestra una card por corte con el agregado pendiente de su
    estacion, titulo con hora y timer semaforo, y es un visor pasivo.
 5. Una estacion con `MostrarProductos` lista productos a armar en vez de
    componentes.
-6. Despachar libera capacidad y el calculo se reacomoda solo; despachado y borrado
-   no computan.
-7. `Capacidad = 0` nunca limita. Ordenes sin configuracion no ocupan capacidad.
+6. Despachar saca la orden del calculo y los cortes se reacomodan solos;
+   despachado y borrado no computan.
+7. `Capacidad = 0` nunca marca excedido. Ordenes sin configuracion no aportan
+   carga (pero pintadas separan).
 8. En bases sin tablas `Cocina*` el KDS funciona exactamente como hoy.
 
 ## Decisiones registradas
 
 - **Corte = pintado, derivado puro** (decision del usuario, refinada en varias
   vueltas): se descartaron el boton "Enviar corte a cocina", la tabla `KDS_Corte`
-  y la columna `CorteNumero`. La frontera entre cortes la define la capacidad; la
-  identidad, la hora del pedido mas viejo.
+  y la columna `CorteNumero`. La identidad del corte es la hora del pedido mas
+  viejo.
+- **Pintado como separador, capacidad advisoria** (decision del usuario,
+  2026-08-15): reemplaza al llenado greedy por capacidad de la version original.
+  El encargado decide donde cortar pintando; todas las pendientes computan; la
+  capacidad solo marca excedido. Lo no cortado se muestra "En espera".
 - **Despachadas fuera del calculo** (decision del usuario): se descarto congelar
   los cortes hasta su cierre; el reacomodo al liberar espacio es comportamiento
   deseado.
@@ -255,8 +290,9 @@ checkbox en el ABM del POS).
   es consecuencia del despacho del encargado, nunca de la estacion.
 - **`MostrarProductos` como propiedad de la estacion en el POS** (decision del
   usuario): se descarto el toggle por pantalla en localStorage.
-- **Greedy en TypeScript, no en SQL**: el llenado secuencial con corte multiple es
-  torpe en T-SQL y trivial en TS; la query solo trae datos crudos.
+- **Particion en TypeScript, no en SQL**: recorrer las pendientes cerrando cortes
+  por separador es torpe en T-SQL y trivial en TS; la query solo trae datos
+  crudos.
 - **Sin realtime nuevo**: se mantiene el polling de 15 s existente; el popup usa
   la respuesta del PATCH, no un canal aparte.
 - **Popup rediseñado con auto-cierre** (pedido del usuario, mismo dia): header

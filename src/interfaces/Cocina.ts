@@ -14,11 +14,12 @@ export interface EstacionCapacidad {
   capacidad: number // 0 = ilimitada
 }
 
-// Carga total de una orden pintada pendiente, por estacion.
+// Carga total de una orden pendiente, por estacion. resaltado = actua de separador.
 export interface OrdenCarga {
   visitaId: number
   orden: number
   horaEfectiva: string // ISO; wall clock La_Paz, mismo convenio que 'hora' en Orden
+  resaltado: boolean
   ocupacionPorEstacion: Record<number, number>
 }
 
@@ -27,23 +28,39 @@ export interface Corte {
   horaInicio: string // ISO del pedido mas viejo (para el timer)
   ordenes: { visitaId: number; orden: number }[]
   ocupacionPorEstacion: Record<number, number>
-  excedido: boolean // una orden sobredimensionada supero la capacidad
+  excedido: boolean // la carga supera la capacidad de alguna estacion (advertencia)
+}
+
+// Resultado de derivar: cortes cerrados por pintado + lo que aun no fue cortado.
+export interface DerivacionCortes {
+  cortes: Corte[]
+  enEspera: Corte | null
 }
 
 export interface ItemCorteEstacion {
   nombre: string
   cantidad: number
+  observacion?: string | null // solo en items de pedido; el agregado no la lleva
+}
+
+// Un pedido dentro de la seccion de un corte, con lo relevante a la estacion.
+export interface PedidoEstacion {
+  visitaId: number
+  orden: number
+  items: ItemCorteEstacion[]
 }
 
 export interface CorteEstacion {
   horaEtiqueta: string
   horaInicio: string
-  items: ItemCorteEstacion[]
+  items: ItemCorteEstacion[] // agregado del corte (suma de sus pedidos)
+  pedidos: PedidoEstacion[]
 }
 
 export interface CargaEstacionResponse {
   estacion: { nombre: string; mostrarProductos: boolean } | null
   cortes: CorteEstacion[]
+  enEspera: CorteEstacion | null // pendientes despues del ultimo corte cerrado
 }
 
 export interface ResumenEstacionPintado {
@@ -55,7 +72,7 @@ export interface ResumenEstacionPintado {
 
 export interface ResumenPintado {
   generaTrabajo: boolean
-  abreCorteNuevo: boolean
+  cantidadOrdenes: number // ordenes que integran el corte recien cerrado
   excedido: boolean
   horaEtiqueta: string
   estaciones: ResumenEstacionPintado[]
