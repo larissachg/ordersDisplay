@@ -137,16 +137,9 @@ export const CorteResumenDialog = ({
                       </span>
                     </span>
                     <span className='whitespace-nowrap text-2xl font-bold tabular-nums'>
-                      {estacion.capacidad === 0 ? (
-                        <>
-                          {estacion.ocupacion}{' '}
-                          <span className='text-lg font-semibold opacity-70'>
-                            · sin límite
-                          </span>
-                        </>
-                      ) : (
-                        `${estacion.ocupacion} / ${estacion.capacidad}`
-                      )}
+                      {estacion.capacidad === 0
+                        ? `${estacion.ocupacion} / ∞`
+                        : `${estacion.ocupacion} / ${estacion.capacidad}`}
                     </span>
                   </div>
                   {estacion.capacidad > 0 && (
