@@ -9,10 +9,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!Number.isInteger(conteoId) || conteoId <= 0) {
       return NextResponse.json({ error: 'id inválido' }, { status: 400 })
     }
-    const { pin } = await request.json()
+    const { pin, observacion } = await request.json()
     const auth = await autenticar(pin)
     if ('error' in auth) return auth.error
-    const resultado = await cerrarConteo(conteoId, auth.sesion)
+    const resultado = await cerrarConteo(
+      conteoId,
+      auth.sesion,
+      typeof observacion === 'string' ? observacion : ''
+    )
     if (!resultado.ok) return NextResponse.json({ error: resultado.mensaje }, { status: 409 })
     return NextResponse.json({ message: resultado.mensaje }, { status: 200 })
   } catch (error) {

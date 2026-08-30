@@ -19,5 +19,9 @@ export const puedeReabrir = (tipo: number) => ROLES_SUPERVISAR.includes(tipo)
 export const puedeAnular = (tipo: number, esDueno: boolean, estado: string) =>
   ROLES_SUPERVISAR.includes(tipo) || (esDueno && estado === 'abierto')
 
+// Marcador que /config guarda en localStorage.equipo para que la pantalla
+// principal abra directo el modulo de inventario (hermano de 'estacion:<id>').
+export const EQUIPO_INVENTARIO = 'inventario'
+
 export const ESTADOS_CONTEO = ['abierto', 'revision', 'aplicado', 'anulado'] as const
 export type EstadoConteo = (typeof ESTADOS_CONTEO)[number]

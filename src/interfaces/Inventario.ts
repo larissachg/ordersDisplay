@@ -17,9 +17,13 @@ export interface ProductoContable {
   productoId: number
   nombre: string
   codigo: string // Productos.Codigo = codigo de barras; puede ser ''
+  // Productos.Presentacion: la unidad en la que se cuenta y en la que el POS
+  // lleva el stock. UnidadContenido no se usa en este modulo.
   presentacion: string
-  unidad: string // Productos.UnidadContenido; '' si no tiene
   tipoProducto: string // TiposProductos.Descripcion para agrupar
+  // Stock del sistema en el almacen del conteo. null = el rol no puede verlo
+  // (captura ciega); 0 es un stock real de cero.
+  stock: number | null
 }
 
 export interface ConteoResumen {
@@ -41,7 +45,7 @@ export interface ConteoResumen {
 export interface ConteoDetalleDb {
   productoId: number
   nombre: string
-  unidad: string
+  presentacion: string
   tipoProducto: string
   cantidadContada: number
   stockSnapshot: number // solo llega si el rol ve diferencias
@@ -49,6 +53,8 @@ export interface ConteoDetalleDb {
   costo: number // idem
   observacion: string
   fechaConteo: string
+  // true = cantidad heredada de un conteo anterior, todavia sin recontar.
+  copiado: boolean
 }
 
 export interface ConteoCompleto {

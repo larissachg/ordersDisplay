@@ -8,10 +8,10 @@ import { EstadoConteo } from '@/contants/inventario'
 
 const ahoraLaPaz = () => moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:ss')
 
+// Sin observacion: se pide al cerrar el conteo, no al crearlo.
 export async function crearConteo(
   almacenId: number,
   noVendibles: boolean,
-  observacion: string,
   meseroId: number
 ): Promise<number> {
   await ensureTablasConteo()
@@ -20,15 +20,48 @@ export async function crearConteo(
     .request()
     .input('almacenId', sql.Int, almacenId)
     .input('noVendibles', sql.Bit, noVendibles)
-    .input('observacion', sql.VarChar, observacion.slice(0, 500))
     .input('meseroId', sql.Int, meseroId)
     .input('fecha', sql.VarChar, ahoraLaPaz())
     .query(`
       INSERT INTO KDS_Conteos (AlmacenID, NoVendibles, Estado, MeseroID, Observacion, FechaCreacion)
       OUTPUT INSERTED.ConteoID
-      VALUES (@almacenId, @noVendibles, 'abierto', @meseroId, @observacion, @fecha)
+      VALUES (@almacenId, @noVendibles, 'abierto', @meseroId, '', @fecha)
     `)
   return result.recordset[0].ConteoID
+}
+
+// Copia los productos y cantidades de un conteo anterior al conteo nuevo.
+// El StockSnapshot se toma AHORA, no se hereda: el delta tiene que medirse
+// contra el stock de hoy. Las filas quedan marcadas Copiado = 1 hasta que
+// alguien las recuente.
+export async function copiarDetalles(
+  conteoOrigenId: number,
+  conteoDestinoId: number,
+  almacenId: number
+): Promise<number> {
+  await ensureTablasConteo()
+  const pool = await getPool()
+  const colStock = `Stock${almacenId}` // int validado por getCabecera
+  const result = await pool
+    .request()
+    .input('origen', sql.Int, conteoOrigenId)
+    .input('destino', sql.Int, conteoDestinoId)
+    .input('fecha', sql.VarChar, ahoraLaPaz())
+    .query(`
+      INSERT INTO KDS_ConteoDetalles
+        (ConteoID, ProductoID, CantidadContada, StockSnapshot, FechaConteo, Observacion, Copiado)
+      SELECT @destino, d.ProductoID, d.CantidadContada,
+             COALESCE(p.${colStock}, 0), @fecha, '', 1
+      FROM KDS_ConteoDetalles d
+      INNER JOIN Productos p ON p.ID = d.ProductoID
+      WHERE d.ConteoID = @origen
+        AND p.Borrado = 0
+        AND NOT EXISTS (
+          SELECT 1 FROM KDS_ConteoDetalles x
+          WHERE x.ConteoID = @destino AND x.ProductoID = d.ProductoID
+        )
+    `)
+  return result.rowsAffected[0] ?? 0
 }
 
 export async function listarConteos(): Promise<ConteoResumen[]> {
@@ -98,10 +131,11 @@ export async function getConteo(
     : `0 AS StockSnapshot, 0 AS StockVivo, 0 AS Costo`
   const detallesResult = await pool.request().input('conteoId', sql.Int, conteoId).query(`
     SELECT d.ProductoID, COALESCE(p.Nombre, '') AS Nombre,
-           COALESCE(p.UnidadContenido, '') AS Unidad,
+           COALESCE(p.Presentacion, '') AS Presentacion,
            COALESCE(tp.Descripcion, 'Sin categoría') AS TipoProducto,
            d.CantidadContada, ${columnasStock},
            COALESCE(d.Observacion, '') AS Observacion,
+           COALESCE(d.Copiado, 0) AS Copiado,
            CONVERT(varchar(19), d.FechaConteo, 120) AS FechaConteo
     FROM KDS_ConteoDetalles d
     INNER JOIN Productos p ON p.ID = d.ProductoID
@@ -115,14 +149,15 @@ export async function getConteo(
   const detalles: ConteoDetalleDb[] = detallesResult.recordset.map((f) => ({
     productoId: f.ProductoID,
     nombre: f.Nombre,
-    unidad: f.Unidad,
+    presentacion: f.Presentacion,
     tipoProducto: f.TipoProducto,
     cantidadContada: f.CantidadContada,
     stockSnapshot: f.StockSnapshot,
     stockVivo: f.StockVivo,
     costo: f.Costo,
     observacion: f.Observacion,
-    fechaConteo: f.FechaConteo
+    fechaConteo: f.FechaConteo,
+    copiado: !!f.Copiado
   }))
   return { conteo, detalles, conDiferencias }
 }
@@ -144,24 +179,41 @@ export async function upsertDetalle(
 
   const pool = await getPool()
   const colStock = `Stock${cab.almacenId}` // int validado en getCabecera
-  await pool
-    .request()
-    .input('conteoId', sql.Int, conteoId)
-    .input('productoId', sql.Int, productoId)
-    .input('cantidad', sql.Float, cantidad)
-    .input('observacion', sql.VarChar, observacion.slice(0, 500))
-    .input('fecha', sql.VarChar, ahoraLaPaz())
-    .query(`
+  const peticion = () =>
+    pool
+      .request()
+      .input('conteoId', sql.Int, conteoId)
+      .input('productoId', sql.Int, productoId)
+      .input('cantidad', sql.Float, cantidad)
+      .input('observacion', sql.VarChar, observacion.slice(0, 500))
+      .input('fecha', sql.VarChar, ahoraLaPaz())
+
+  // UPDATE primero: si la fila ya existe (recuento o reintento del cliente) no se
+  // intenta ningun INSERT. El UNIQUE (ConteoID, ProductoID) sigue siendo la red
+  // final ante dos escrituras simultaneas del mismo producto.
+  const escribir = async () =>
+    peticion().query(`
       DECLARE @snap float = (SELECT COALESCE(${colStock}, 0) FROM Productos WHERE ID = @productoId);
       IF @snap IS NULL SET @snap = 0;
-      IF EXISTS (SELECT 1 FROM KDS_ConteoDetalles WHERE ConteoID = @conteoId AND ProductoID = @productoId)
-        UPDATE KDS_ConteoDetalles
-        SET CantidadContada = @cantidad, StockSnapshot = @snap, FechaConteo = @fecha, Observacion = @observacion
-        WHERE ConteoID = @conteoId AND ProductoID = @productoId
-      ELSE
-        INSERT INTO KDS_ConteoDetalles (ConteoID, ProductoID, CantidadContada, StockSnapshot, FechaConteo, Observacion)
-        VALUES (@conteoId, @productoId, @cantidad, @snap, @fecha, @observacion);
+      -- Copiado = 0: al guardarla a mano deja de ser una cantidad heredada.
+      UPDATE KDS_ConteoDetalles
+      SET CantidadContada = @cantidad, StockSnapshot = @snap, FechaConteo = @fecha,
+          Observacion = @observacion, Copiado = 0
+      WHERE ConteoID = @conteoId AND ProductoID = @productoId;
+      IF @@ROWCOUNT = 0
+        INSERT INTO KDS_ConteoDetalles (ConteoID, ProductoID, CantidadContada, StockSnapshot, FechaConteo, Observacion, Copiado)
+        VALUES (@conteoId, @productoId, @cantidad, @snap, @fecha, @observacion, 0);
     `)
+
+  try {
+    await escribir()
+  } catch (error) {
+    // 2627/2601 = violacion de UNIQUE: otro request inserto la fila entre el
+    // UPDATE y el INSERT. Reintentar cae por la rama UPDATE y queda una sola fila.
+    const err = error as { number?: number }
+    if (err.number === 2627 || err.number === 2601) await escribir()
+    else throw error
+  }
   return 'ok'
 }
 

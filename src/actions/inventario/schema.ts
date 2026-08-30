@@ -34,6 +34,10 @@ export async function ensureTablasConteo(): Promise<void> {
       Observacion varchar(500) NULL,
       CONSTRAINT UQ_KDS_ConteoDetalles UNIQUE (ConteoID, ProductoID)
     );
+    -- Copiado = la cantidad viene de un conteo anterior y nadie la reconto aun.
+    -- ALTER aparte: la tabla puede existir de una version previa del modulo.
+    IF COL_LENGTH('KDS_ConteoDetalles', 'Copiado') IS NULL
+    ALTER TABLE KDS_ConteoDetalles ADD Copiado bit NOT NULL CONSTRAINT DF_KDS_ConteoDetalles_Copiado DEFAULT 0;
   `)
   creadas = true
 }

@@ -10,7 +10,13 @@ const ahoraLaPaz = () => moment().tz('America/La_Paz').format('YYYY-MM-DD HH:mm:
 
 // Todas las transiciones usan UPDATE ... WHERE Estado='<origen>' como gate:
 // rowsAffected=0 significa que otro request gano la carrera.
-export async function cerrarConteo(conteoId: number, sesion: SesionInventario) {
+// La observacion del conteo se escribe aca, no al crearlo: recien al cerrar se
+// sabe que anotar (faltantes, producto que no estaba, etc).
+export async function cerrarConteo(
+  conteoId: number,
+  sesion: SesionInventario,
+  observacion: string
+) {
   await ensureTablasConteo()
   const cab = await getCabecera(conteoId)
   if (!cab) return { ok: false, mensaje: 'Conteo inexistente' }
@@ -21,8 +27,10 @@ export async function cerrarConteo(conteoId: number, sesion: SesionInventario) {
   const result = await pool
     .request()
     .input('conteoId', sql.Int, conteoId)
+    .input('observacion', sql.VarChar, observacion.slice(0, 500))
     .query(
-      `UPDATE KDS_Conteos SET Estado = 'revision' WHERE ConteoID = @conteoId AND Estado = 'abierto'`
+      `UPDATE KDS_Conteos SET Estado = 'revision', Observacion = @observacion
+       WHERE ConteoID = @conteoId AND Estado = 'abierto'`
     )
   return result.rowsAffected[0] > 0
     ? { ok: true, mensaje: 'Conteo cerrado, listo para revisión' }
