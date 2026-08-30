@@ -1,7 +1,9 @@
 # KDS — Módulo de Conteo y Ajuste de Inventario
 
 Fecha: 2026-08-30
-Estado: aprobado en diseño, pendiente de plan de implementación.
+Estado: implementado (etapas 1-5) el 2026-08-30 en la rama `inventario-conteo`,
+siguiendo `docs/superpowers/plans/2026-08-30-kds-inventario-conteo.md`. Falta la
+verificación funcional contra una base del POS (ver "Pendiente de verificación" abajo).
 
 ## 1. Objetivo
 
@@ -304,6 +306,27 @@ guardar → cámara sigue abierta. Código no encontrado → toast con el códig
 5. **Cámara** — BarcodeDetector + zxing + fallback foto, doc del flag Chrome.
 
 Cada etapa termina compilable y usable por sí sola.
+
+Las cinco etapas están implementadas y el proyecto compila (`npx tsc --noEmit` y
+`npm run build` limpios; `scripts/test-conteoInventario.ts` en verde).
+
+### Pendiente de verificación (sin BD disponible)
+
+La implementación se hizo sin acceso a una base del POS (el `.env` de esta máquina
+falla con `Login failed for user 'sa'`), así que estos puntos del plan quedaron sin
+correr y hay que hacerlos contra una base real antes de instalar:
+
+- `POST /api/inventario/sesion` con un código real y con la backdoor `15071507`.
+- Nombres/columnas asumidos del POS: `Almacenes(AlmacenID, Nombre, Interno,
+  ResponsableID)`, `Productos(Codigo, Presentacion, UnidadContenido, Borrado,
+  TienePreparacion, esCombo, Costo)`, `Ajustes(Fecha, Observacion, AlmacenID,
+  FechaRegistro)`, `DetallesAjustes(Cantidad, CantidadFinal, Observacion, AjusteID,
+  ProductoID, Costo, CostoBruto)`, `Logg(Fecha, Accion, Formulario, UserID)`.
+  `TiposProductos.NoVendibles` y `Productos.CostoBruto` ya van con guard `COL_LENGTH`.
+- Ciclo completo: crear conteo → capturar → cerrar → aplicar → revisar en el POS que
+  el ajuste abre en `frmAjustes` y que `Stock<N>` se movió exactamente el delta.
+- Doble aplicación → 409 y cero filas nuevas.
+- Escáner en un Android real, con y sin el flag de Chrome.
 
 ## 14. Diseño frontend
 
