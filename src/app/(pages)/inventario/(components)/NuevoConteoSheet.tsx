@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlmacenInventario } from '@/interfaces/Inventario'
+import { Copy, X, Check } from 'lucide-react'
+import { AlmacenInventario, ConteoResumen } from '@/interfaces/Inventario'
 
-// Sheet inferior para crear conteo: almacen (si hay >1), tipo, observacion.
+// Sheet inferior para crear conteo: almacen (si hay >1), tipo, y la opcion de
+// copiar un conteo anterior.
 export const NuevoConteoSheet = ({
   pin,
   onCreado,
@@ -17,9 +19,14 @@ export const NuevoConteoSheet = ({
   const [cargados, setCargados] = useState(false)
   const [almacenId, setAlmacenId] = useState<number | null>(null)
   const [noVendibles, setNoVendibles] = useState(false)
-  const [observacion, setObservacion] = useState('')
   const [error, setError] = useState('')
   const [creando, setCreando] = useState(false)
+  // La mayoria de los dias se cuenta la misma lista: copiar un conteo previo del
+  // mismo almacen y tipo evita rearmarla producto por producto. No se sugiere
+  // ninguno solo: el usuario elige cual.
+  const [previos, setPrevios] = useState<ConteoResumen[]>([])
+  const [copiarDe, setCopiarDe] = useState<number | null>(null)
+  const [eligiendo, setEligiendo] = useState(false)
 
   useEffect(() => {
     fetch('/api/inventario/almacenes', { headers: { 'x-kds-pin': pin } })
@@ -33,7 +40,36 @@ export const NuevoConteoSheet = ({
         setError('No se pudieron cargar los almacenes')
         setCargados(true)
       })
+
+    fetch('/api/inventario/conteos', { headers: { 'x-kds-pin': pin } })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((lista: ConteoResumen[]) => setPrevios(lista))
+      .catch(() => setPrevios([]))
   }, [pin])
+
+  // Candidatos: mismo almacen, mismo tipo, con productos y no anulados.
+  const candidatos =
+    almacenId === null
+      ? []
+      : previos.filter(
+          (c) =>
+            c.almacenId === almacenId &&
+            c.noVendibles === noVendibles &&
+            c.contados > 0 &&
+            c.estado !== 'anulado'
+        )
+
+  const elegido = candidatos.find((c) => c.conteoId === copiarDe)
+
+  // Cambiar de almacen o tipo invalida la eleccion: los candidatos son otros.
+  useEffect(() => {
+    setCopiarDe(null)
+    setEligiendo(false)
+  }, [almacenId, noVendibles])
+
+  // '2026-08-30 16:57:44' -> '30/08 16:57'
+  const fechaCorta = (fecha: string) =>
+    fecha.length >= 16 ? `${fecha.slice(8, 10)}/${fecha.slice(5, 7)} ${fecha.slice(11, 16)}` : fecha
 
   const crear = async () => {
     if (almacenId === null || creando) return
@@ -41,7 +77,12 @@ export const NuevoConteoSheet = ({
     try {
       const resp = await fetch('/api/inventario/conteos', {
         method: 'POST',
-        body: JSON.stringify({ pin, almacenId, noVendibles, observacion })
+        body: JSON.stringify({
+          pin,
+          almacenId,
+          noVendibles,
+          copiarDe
+        })
       })
       const data = await resp.json()
       if (!resp.ok) {
@@ -121,12 +162,67 @@ export const NuevoConteoSheet = ({
           </div>
         </div>
 
-        <input
-          value={observacion}
-          onChange={(e) => setObservacion(e.target.value)}
-          placeholder='Observación (opcional)'
-          className='h-12 w-full rounded-lg border border-[#dde0e3] px-3.5 text-[15px] font-semibold text-[#2c3236] outline-none'
-        />
+        {candidatos.length > 0 && (
+          <div className='space-y-2'>
+            {elegido ? (
+              <div className='flex items-center gap-3 rounded-lg border-2 border-[#80a76e] bg-[#f2f6ef] p-3'>
+                <Copy className='h-5 w-5 shrink-0 text-[#5d8a4a]' />
+                <span className='min-w-0 flex-1'>
+                  <span className='block text-[15px] font-bold text-[#2c3236]'>
+                    Copia del conteo #{elegido.conteoId}
+                  </span>
+                  <span className='block text-[13px] font-semibold text-[#8b949b]'>
+                    {elegido.contados} productos · {fechaCorta(elegido.fechaCreacion)}
+                  </span>
+                </span>
+                <button
+                  onClick={() => setCopiarDe(null)}
+                  aria-label='Quitar la copia'
+                  className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#626e78]'
+                >
+                  <X className='h-4 w-4' />
+                </button>
+              </div>
+            ) : eligiendo ? (
+              <div className='max-h-56 space-y-2 overflow-y-auto rounded-lg border border-[#dde0e3] p-2'>
+                {candidatos.map((c) => (
+                  <button
+                    key={c.conteoId}
+                    onClick={() => {
+                      setCopiarDe(c.conteoId)
+                      setEligiendo(false)
+                    }}
+                    className='flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left active:bg-[#eef0f1]'
+                  >
+                    <Check className='h-4 w-4 shrink-0 text-[#b6bcc1]' />
+                    <span className='min-w-0 flex-1'>
+                      <span className='block text-[15px] font-bold text-[#2c3236]'>
+                        Conteo #{c.conteoId} · {c.contados} productos
+                      </span>
+                      <span className='block text-[13px] font-semibold text-[#8b949b]'>
+                        {fechaCorta(c.fechaCreacion)} · {c.meseroNombre} · {c.estado}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setEligiendo(false)}
+                  className='h-10 w-full rounded-lg text-sm font-bold text-[#626e78]'
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEligiendo(true)}
+                className='flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#dde0e3] text-[15px] font-bold text-[#626e78]'
+              >
+                <Copy className='h-4 w-4' />
+                Copiar de otro conteo
+              </button>
+            )}
+          </div>
+        )}
 
         <button
           onClick={crear}

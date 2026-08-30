@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { PinGate } from './PinGate'
 import { ListaConteos } from './ListaConteos'
 import { NuevoConteoSheet } from './NuevoConteoSheet'
@@ -41,27 +42,27 @@ export const InventarioApp = () => {
     }
   }, [pin, tocarActividad])
 
+  // Altura fija (h-dvh, no min-h): con min-h el contenedor crece con la lista y
+  // las barras de accion ancladas abajo terminan fuera de pantalla. Asi el scroll
+  // pasa dentro de cada vista y esas barras quedan siempre visibles.
   return (
     <div
-      className='mx-auto flex min-h-dvh w-full max-w-md flex-col bg-[#eef0f1]'
+      className='mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#eef0f1]'
       onPointerDown={tocarActividad}
       onKeyDown={tocarActividad}
     >
-      <header className='bg-[#626e78] px-5 py-4 text-white'>
-        <div className='flex items-center justify-between gap-3'>
-          <div>
-            <h1 className='text-2xl font-bold uppercase leading-none tracking-wide'>Inventario</h1>
-            <p className='mt-1 text-sm font-semibold opacity-75'>Restotech KDS</p>
-          </div>
-          {sesion && (
-            <button
-              onClick={cerrarSesion}
-              className='rounded-full bg-white/15 px-3.5 py-2 text-sm font-bold'
-            >
-              {sesion.nombre}
-            </button>
-          )}
-        </div>
+      <header className='flex items-center justify-between gap-3 bg-[#626e78] px-4 py-2 text-white'>
+        <h1 className='text-lg font-bold uppercase leading-none tracking-wide'>Inventario</h1>
+        {sesion && (
+          <button
+            onClick={cerrarSesion}
+            aria-label={`Salir de la sesión de ${sesion.nombre}`}
+            className='flex items-center gap-1.5 rounded-full bg-white/15 py-1.5 pl-3 pr-2.5 text-[13px] font-bold'
+          >
+            <span className='max-w-[140px] truncate'>{sesion.nombre}</span>
+            <LogOut className='h-3.5 w-3.5 shrink-0 opacity-90' />
+          </button>
+        )}
       </header>
 
       {pin === null || sesion === null ? (
@@ -98,12 +99,12 @@ const VistaActual = ({
         sesion={sesion}
         conteoId={vista.conteoId}
         onVolver={() => setVista({ tipo: 'lista' })}
-        onTerminar={async () => {
-          // Cerrar pasa el conteo a revision; si falla, la pantalla de revision
-          // lo muestra igual en su estado real.
+        onTerminar={async (observacion) => {
+          // Cerrar pasa el conteo a revision y graba su observacion; si falla,
+          // la pantalla de revision lo muestra igual en su estado real.
           await fetch(`/api/inventario/conteos/${vista.conteoId}/cerrar`, {
             method: 'POST',
-            body: JSON.stringify({ pin })
+            body: JSON.stringify({ pin, observacion })
           }).catch(() => null)
           setVista({ tipo: 'revision', conteoId: vista.conteoId })
         }}
@@ -117,6 +118,7 @@ const VistaActual = ({
         sesion={sesion}
         conteoId={vista.conteoId}
         onVolver={() => setVista({ tipo: 'lista' })}
+        onReabierto={() => setVista({ tipo: 'captura', conteoId: vista.conteoId })}
       />
     )
   }
