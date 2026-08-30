@@ -1,0 +1,886 @@
+<title>Inventario KDS · Pantallas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────────
+     La cromática del módulo (tinta/gris/verde/ámbar/rojo) es fija: las
+     maquetas retratan una UI clara, así que no cambia con el tema del visor.
+     Lo que sí se adapta es el papel sobre el que están apoyadas.            */
+  :root {
+    color-scheme: light;
+
+    --papel: #e4e7ea;
+    --papel-2: #f3f5f6;
+    --tinta: #20262a;
+    --tinta-suave: #5d686f;
+    --linea: #cbd2d7;
+    --marco: #b9c2c8;
+    --sombra: 20 38 42;
+
+    /* Paleta del KDS — idéntica en ambos temas */
+    --kds-tinta: #2c3236;
+    --kds-gris: #626e78;
+    --kds-verde: #80a76e;
+    --kds-verde-texto: #5d8a4a;
+    --kds-ambar: #eac568;
+    --kds-ambar-suave: #f7ecd2;
+    --kds-ambar-texto: #8a6d1f;
+    --kds-rojo: #d17f7f;
+    --kds-rojo-texto: #b85c5c;
+    --kds-fondo: #eef0f1;
+    --kds-borde: #dde0e3;
+    --kds-borde-2: #e5e8ea;
+    --kds-mudo: #8b949b;
+    --kds-dash: #b6bcc1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --papel: #16191c;
+      --papel-2: #1f2429;
+      --tinta: #e7ecef;
+      --tinta-suave: #98a4ac;
+      --linea: #2e353b;
+      --marco: #3a444b;
+      --sombra: 0 0 0;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --papel: #16191c;
+    --papel-2: #1f2429;
+    --tinta: #e7ecef;
+    --tinta-suave: #98a4ac;
+    --linea: #2e353b;
+    --marco: #3a444b;
+    --sombra: 0 0 0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .hoja {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+  }
+
+  /* ── Encabezado ─────────────────────────────────────────────────────── */
+  .cabecera { display: flex; flex-direction: column; gap: 10px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+  }
+
+  h1 {
+    font-family: "Archivo", ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .bajada {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--tinta-suave);
+  }
+
+  /* ── Leyenda de estados ─────────────────────────────────────────────── */
+  .leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding: 14px 16px;
+    background: var(--papel-2);
+    border: 1px solid var(--linea);
+    border-radius: 10px;
+  }
+
+  .leyenda-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--tinta-suave);
+  }
+
+  .leyenda-item b { color: var(--tinta); font-weight: 600; }
+
+  .muestra {
+    width: 22px; height: 22px; border-radius: 999px;
+    display: grid; place-items: center;
+    font-size: 11px; color: var(--kds-tinta);
+    flex: none;
+  }
+
+  /* ── Tira de pantallas ──────────────────────────────────────────────── */
+  .tira {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+
+  .ficha { display: flex; flex-direction: column; gap: 14px; }
+
+  .ficha-titulo {
+    display: flex; align-items: baseline; gap: 10px;
+  }
+
+  .paso {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 600;
+    color: var(--kds-verde-texto);
+  }
+
+  .ficha-titulo h2 {
+    font-family: "Archivo", ui-sans-serif, system-ui, sans-serif;
+    font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .notas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+  .notas li {
+    font-size: 13px;
+    color: var(--tinta-suave);
+    padding-left: 14px;
+    position: relative;
+  }
+
+  .notas li::before {
+    content: "";
+    position: absolute; left: 0; top: 8px;
+    width: 5px; height: 5px; border-radius: 999px;
+    background: var(--marco);
+  }
+
+  .notas b { color: var(--tinta); font-weight: 600; }
+
+  /* ── Dispositivo ────────────────────────────────────────────────────── */
+  .device {
+    width: 100%;
+    max-width: 340px;
+    border: 8px solid var(--kds-tinta);
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 18px 40px -18px rgb(var(--sombra) / 0.55);
+    background: var(--kds-fondo);
+  }
+
+  .pantalla {
+    height: 620px;
+    display: flex;
+    flex-direction: column;
+    background: var(--kds-fondo);
+    color: var(--kds-tinta);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    font-size: 13px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Cabecera de la app */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    background: var(--kds-gris);
+    color: #fff;
+    padding: 7px 12px;
+  }
+
+  .app-header h3 {
+    margin: 0;
+    font-size: 15px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
+  .chip-sesion {
+    display: flex; align-items: center; gap: 5px;
+    background: rgb(255 255 255 / 0.15);
+    border-radius: 999px;
+    padding: 4px 9px 4px 11px;
+    font-size: 12px; font-weight: 700;
+  }
+
+  /* Sub-cabecera de una vista */
+  .sub-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px 5px 4px;
+    color: #fff;
+    background: var(--kds-gris);
+  }
+
+  .sub-header.revision { background: var(--kds-ambar); color: var(--kds-tinta); }
+
+  .flecha {
+    width: 30px; height: 30px; flex: none;
+    display: grid; place-items: center;
+    font-size: 17px; line-height: 1;
+  }
+
+  .sub-titulo {
+    flex: 1; min-width: 0;
+    font-size: 13.5px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .sub-titulo .mudo { font-weight: 600; opacity: 0.72; }
+
+  .contador {
+    flex: none; font-size: 13.5px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .badge-oscuro {
+    flex: none;
+    background: var(--kds-tinta); color: #fff;
+    border-radius: 999px; padding: 2px 8px;
+    font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .progreso { height: 4px; background: #4d575f; }
+  .progreso span { display: block; height: 100%; background: var(--kds-verde); }
+
+  /* Buscador */
+  .fila-buscar { display: flex; gap: 8px; padding: 8px 12px; }
+
+  .buscador {
+    flex: 1; height: 38px;
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--kds-borde);
+    border-radius: 8px; padding: 0 10px;
+    color: var(--kds-mudo); font-weight: 600;
+  }
+
+  .btn-escanear {
+    width: 38px; height: 38px; flex: none;
+    background: var(--kds-gris); color: #fff;
+    border-radius: 8px; display: grid; place-items: center;
+  }
+
+  /* Chips */
+  .chips {
+    display: flex; gap: 7px; padding: 0 12px 8px;
+    overflow: hidden;
+  }
+
+  .chip {
+    flex: none; height: 30px;
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+    background: #fff; border: 1px solid var(--kds-borde);
+    color: var(--kds-gris);
+    white-space: nowrap;
+  }
+
+  .chip.activo { background: var(--kds-gris); color: #fff; border-color: var(--kds-gris); }
+  .chip.contados { border: 1px solid var(--kds-verde); color: var(--kds-verde-texto); }
+
+  /* Lista */
+  .lista { flex: 1; overflow: hidden; padding: 0 12px; display: flex; flex-direction: column; gap: 7px; }
+
+  .grupo {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--kds-mudo);
+    padding-top: 2px;
+  }
+
+  .prod {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid var(--kds-borde-2);
+    border-radius: 10px; padding: 9px 12px;
+  }
+
+  .prod-nombre { font-size: 13.5px; font-weight: 700; line-height: 1.25; }
+  .prod-meta { font-size: 11.5px; font-weight: 600; color: var(--kds-mudo); }
+  .prod-meta .dif-neg { color: var(--kds-rojo-texto); font-weight: 700; }
+  .prod-meta .dif-pos { color: var(--kds-verde-texto); font-weight: 700; }
+
+  .marca {
+    flex: none;
+    display: flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 5px 11px;
+    font-size: 14px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .marca.ok { background: var(--kds-verde); }
+  .marca.copia { background: var(--kds-borde); color: var(--kds-gris); }
+  .marca.pendiente { background: var(--kds-ambar); }
+  .marca.vacia {
+    width: 30px; height: 30px; padding: 0;
+    border: 2px dashed var(--kds-dash); background: none;
+  }
+
+  /* Pastilla flotante */
+  .flotante { position: absolute; inset-inline: 0; bottom: 0; }
+  .degrade { height: 34px; background: linear-gradient(to top, var(--kds-fondo), rgb(238 240 241 / 0.85), transparent); }
+  .flotante-base { background: var(--kds-fondo); display: flex; justify-content: center; padding: 0 12px 12px; }
+
+  .pastilla {
+    height: 42px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--kds-tinta); color: #fff;
+    border-radius: 999px; padding: 0 18px 0 22px;
+    font-size: 14px; font-weight: 700; letter-spacing: 0.02em;
+    box-shadow: 0 6px 20px rgb(44 50 54 / 0.45);
+  }
+
+  /* PIN */
+  .gate { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 0 22px; }
+  .gate-titulo { text-align: center; font-size: 17px; font-weight: 700; }
+  .puntos { display: flex; justify-content: center; gap: 12px; }
+  .punto { width: 13px; height: 13px; border-radius: 999px; border: 2px solid var(--kds-dash); background: #fff; }
+  .punto.lleno { background: var(--kds-tinta); border-color: var(--kds-tinta); }
+
+  .teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tecla {
+    height: 44px; border-radius: 8px; background: var(--kds-fondo);
+    border: 1px solid var(--kds-borde);
+    display: grid; place-items: center;
+    font-size: 19px; font-weight: 700;
+  }
+  .tecla.sec { background: #e5e8ea; color: var(--kds-gris); font-size: 16px; }
+
+  .btn-verde {
+    height: 44px; border-radius: 8px; background: var(--kds-verde);
+    display: grid; place-items: center;
+    font-size: 15px; font-weight: 700; color: var(--kds-tinta);
+  }
+
+  .pie-gate { text-align: center; font-size: 11.5px; color: var(--kds-mudo); line-height: 1.5; }
+
+  /* Lista de conteos */
+  .tarjeta-conteo {
+    background: #fff; border-radius: 10px; padding: 11px 13px;
+    box-shadow: 0 1px 2px rgb(44 50 54 / 0.08);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+
+  .tarjeta-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tarjeta-titulo { font-size: 15px; font-weight: 700; }
+
+  .estado {
+    border-radius: 999px; padding: 2px 10px;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--kds-tinta);
+  }
+
+  .historicos { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgb(44 50 54 / 0.08); }
+  .historico { display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-top: 1px solid var(--kds-fondo); }
+  .historico:first-child { border-top: none; }
+  .punto-estado { width: 9px; height: 9px; border-radius: 999px; flex: none; }
+
+  .pie-lista { padding: 10px 12px 14px; }
+  .btn-nuevo {
+    height: 44px; border-radius: 8px; background: var(--kds-verde);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 15px; font-weight: 700; color: var(--kds-tinta);
+    box-shadow: 0 3px 10px rgb(44 50 54 / 0.18);
+  }
+
+  /* Revisión */
+  .banda {
+    padding: 7px 12px; font-size: 11.5px; font-weight: 600;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .banda.obs { background: var(--kds-ambar-suave); color: var(--kds-ambar-texto); }
+  .banda.copiado { background: var(--kds-fondo); color: var(--kds-gris); border-top: 1px solid var(--kds-borde); }
+
+  .strip { display: flex; gap: 1px; background: var(--kds-borde); }
+  .strip div { flex: 1; background: #fff; padding: 7px 10px; }
+  .strip .rotulo { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--kds-mudo); }
+  .strip .valor { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .strip .rotulo span { opacity: 0.7; }
+
+  .cols {
+    display: flex; justify-content: flex-end;
+    padding: 6px 16px 0;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--kds-mudo);
+  }
+  .col-stock { width: 62px; text-align: right; }
+  .col-contado { width: 62px; text-align: right; padding-left: 8px; }
+  .col-dif { width: 54px; text-align: right; padding-left: 8px; }
+
+  .fila-rev {
+    background: #fff; border: 1px solid var(--kds-borde-2);
+    border-radius: 10px; padding: 9px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  .fila-rev-nums { display: flex; align-items: baseline; gap: 8px; }
+  .fila-rev-nums .meta { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--kds-mudo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .num { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .num.stock { width: 62px; text-align: right; font-weight: 600; color: var(--kds-mudo); }
+  .num.contado { width: 62px; text-align: right; padding-left: 8px; font-weight: 700; }
+  .num.dif { width: 54px; text-align: right; padding-left: 8px; font-weight: 700; }
+
+  .aviso {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 3px 10px;
+    font-size: 10.5px; font-weight: 700;
+    width: fit-content;
+  }
+  .aviso.movio { background: var(--kds-ambar-suave); color: var(--kds-ambar-texto); }
+  .aviso.copiado { background: var(--kds-fondo); color: var(--kds-gris); }
+
+  .acciones {
+    background: #fff; padding: 11px 12px 14px;
+    box-shadow: 0 -2px 12px rgb(44 50 54 / 0.12);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .btn-aplicar {
+    height: 44px; border-radius: 8px; background: var(--kds-verde);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 14.5px; font-weight: 700; color: var(--kds-tinta);
+  }
+
+  .acciones-sec { display: flex; gap: 8px; }
+  .btn-sec {
+    flex: 1; height: 38px; border-radius: 8px;
+    border: 1px solid var(--kds-borde);
+    display: grid; place-items: center;
+    font-size: 13.5px; font-weight: 700; color: var(--kds-tinta);
+  }
+  .btn-sec.peligro { border-color: #e6c9c9; color: var(--kds-rojo-texto); }
+
+  .ico { width: 1em; height: 1em; flex: none; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  footer {
+    border-top: 1px solid var(--linea);
+    padding-top: 20px;
+    font-size: 13px;
+    color: var(--tinta-suave);
+    display: flex; flex-wrap: wrap; gap: 6px 20px;
+  }
+
+  footer code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--tinta);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ficha { animation: entrar 0.5s ease-out both; }
+    .ficha:nth-child(2) { animation-delay: 0.06s; }
+    .ficha:nth-child(3) { animation-delay: 0.12s; }
+    .ficha:nth-child(4) { animation-delay: 0.18s; }
+    @keyframes entrar { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="hoja">
+
+  <header class="cabecera">
+    <p class="eyebrow">Restotech KDS · Módulo de inventario</p>
+    <h1>Conteo de inventario, pantalla por pantalla</h1>
+    <p class="bajada">
+      Las cuatro vistas del módulo tal como quedaron: entrada por código del POS, lista de conteos,
+      captura y revisión. Mobile-first, pensadas para contar caminando con el celular en una mano.
+    </p>
+  </header>
+
+  <section class="leyenda" aria-label="Estados de una captura">
+    <div class="leyenda-item">
+      <span class="muestra" style="background: var(--kds-verde)">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      </span>
+      <span><b>Contado</b> y confirmado por el servidor</span>
+    </div>
+    <div class="leyenda-item">
+      <span class="muestra" style="background: var(--kds-borde); color: var(--kds-gris)">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </span>
+      <span><b>Copiado</b> de un conteo anterior, sin recontar</span>
+    </div>
+    <div class="leyenda-item">
+      <span class="muestra" style="background: var(--kds-ambar)">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M5 18a4 4 0 0 1 .3-8A6 6 0 0 1 16 8"/></svg>
+      </span>
+      <span><b>Sin guardar</b>, en cola de reintento</span>
+    </div>
+    <div class="leyenda-item">
+      <span class="muestra" style="border: 2px dashed var(--kds-dash)"></span>
+      <span><b>Sin contar</b>, queda fuera del ajuste</span>
+    </div>
+  </section>
+
+  <div class="tira">
+
+    <!-- ─────────────── 1. PIN ─────────────── -->
+    <article class="ficha">
+      <div class="ficha-titulo">
+        <span class="paso">01</span>
+        <h2>Entrada</h2>
+      </div>
+
+      <div class="device">
+        <div class="pantalla">
+          <div class="app-header"><h3>Inventario</h3></div>
+
+          <div class="gate">
+            <div>
+              <p class="gate-titulo">Ingresá tu código</p>
+              <div class="puntos" style="margin-top: 10px">
+                <span class="punto lleno"></span>
+                <span class="punto lleno"></span>
+                <span class="punto lleno"></span>
+                <span class="punto"></span>
+              </div>
+            </div>
+
+            <div class="teclado">
+              <div class="tecla">1</div><div class="tecla">2</div><div class="tecla">3</div>
+              <div class="tecla">4</div><div class="tecla">5</div><div class="tecla">6</div>
+              <div class="tecla">7</div><div class="tecla">8</div><div class="tecla">9</div>
+              <div class="tecla sec">C</div><div class="tecla">0</div>
+              <div class="tecla sec">
+                <svg class="ico" style="width: 18px; height: 18px" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><path d="m18 9-6 6M12 9l6 6"/></svg>
+              </div>
+            </div>
+
+            <div class="btn-verde">Entrar</div>
+
+            <p class="pie-gate">Mismo código que usás en el POS.<br>El PIN no se guarda en el dispositivo.</p>
+          </div>
+        </div>
+      </div>
+
+      <ul class="notas">
+        <li>Se valida contra <b>Meseros</b> en cada request; no hay sesión ni cookie.</li>
+        <li>Prueba sola tras <b>600 ms sin teclear</b>: los códigos van de 1 a 6 dígitos, así que no se puede disparar "al cuarto".</li>
+        <li>Los puntos crecen con el largo tecleado. Anda con teclado físico y con lector.</li>
+      </ul>
+    </article>
+
+    <!-- ─────────────── 2. LISTA ─────────────── -->
+    <article class="ficha">
+      <div class="ficha-titulo">
+        <span class="paso">02</span>
+        <h2>Conteos</h2>
+      </div>
+
+      <div class="device">
+        <div class="pantalla">
+          <div class="app-header">
+            <h3>Inventario</h3>
+            <span class="chip-sesion">
+              Juan Pérez
+              <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+            </span>
+          </div>
+
+          <div class="lista" style="padding-top: 12px; gap: 10px">
+            <div class="grupo">En curso</div>
+
+            <div class="tarjeta-conteo">
+              <div class="tarjeta-fila">
+                <span class="tarjeta-titulo">Deposito</span>
+                <span class="estado" style="background: var(--kds-verde)">abierto</span>
+              </div>
+              <span class="prod-meta">Vendibles · Conteo #12 · Juan Pérez · 34 contados</span>
+            </div>
+
+            <div class="tarjeta-conteo">
+              <div class="tarjeta-fila">
+                <span class="tarjeta-titulo">Suc. Equipetrol</span>
+                <span class="estado" style="background: var(--kds-ambar)">Revisión</span>
+              </div>
+              <span class="prod-meta">No vendibles · Conteo #11 · Ana Rojas · 18 contados</span>
+            </div>
+
+            <div class="grupo" style="padding-top: 6px">Últimos 7 días</div>
+
+            <div class="historicos">
+              <div class="historico">
+                <span class="punto-estado" style="background: var(--kds-gris)"></span>
+                <span style="flex: 1; min-width: 0">
+                  <span style="display: block; font-size: 13px; font-weight: 700">Deposito</span>
+                  <span class="prod-meta">Aplicado 2026-08-29 14:02 · Ajuste #7</span>
+                </span>
+                <span style="color: var(--kds-dash)">›</span>
+              </div>
+              <div class="historico">
+                <span class="punto-estado" style="background: var(--kds-rojo)"></span>
+                <span style="flex: 1; min-width: 0">
+                  <span style="display: block; font-size: 13px; font-weight: 700">Deposito · No vendibles</span>
+                  <span class="prod-meta">Anulado · por Ana Rojas</span>
+                </span>
+                <span style="color: var(--kds-dash)">›</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pie-lista">
+            <div class="btn-nuevo">
+              <svg class="ico" style="width: 17px; height: 17px" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Nuevo conteo
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="notas">
+        <li>Los abiertos y en revisión siempre; los terminados, de los <b>últimos 7 días</b>.</li>
+        <li>El color del estado es el mismo en toda la app: verde abierto, ámbar revisión, gris aplicado, rojo anulado.</li>
+        <li>Tocar el nombre en la cabecera cierra sesión — por eso ahora lleva el ícono de salida.</li>
+      </ul>
+    </article>
+
+    <!-- ─────────────── 3. CAPTURA ─────────────── -->
+    <article class="ficha">
+      <div class="ficha-titulo">
+        <span class="paso">03</span>
+        <h2>Captura</h2>
+      </div>
+
+      <div class="device">
+        <div class="pantalla">
+          <div class="app-header">
+            <h3>Inventario</h3>
+            <span class="chip-sesion">
+              Juan Pérez
+              <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+            </span>
+          </div>
+
+          <div class="sub-header">
+            <span class="flecha">‹</span>
+            <span class="sub-titulo">Deposito<span class="mudo"> · Vendibles · #12</span></span>
+            <span class="contador">34/81</span>
+          </div>
+          <div class="progreso"><span style="width: 42%"></span></div>
+
+          <div class="fila-buscar">
+            <div class="buscador">
+              <svg class="ico" style="width: 15px; height: 15px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              Buscar o escanear código…
+            </div>
+            <div class="btn-escanear">
+              <svg class="ico" style="width: 18px; height: 18px" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M11 8v8M15 8v8"/></svg>
+            </div>
+          </div>
+
+          <div class="chips">
+            <span class="chip contados">
+              <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              Contados (34)
+            </span>
+            <span class="chip activo">Todas (34/81)</span>
+            <span class="chip">BEBIDAS (8/24)</span>
+          </div>
+
+          <div class="lista">
+            <div class="grupo">Acompañamientos · 2 de 2</div>
+
+            <div class="prod">
+              <span style="flex: 1; min-width: 0">
+                <span class="prod-nombre">AROS GRANDES</span>
+                <span class="prod-meta" style="display: block">UNIDAD · EX-028 · Stock 27 · <span class="dif-neg">−3</span></span>
+              </span>
+              <span class="marca ok">24
+                <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+            </div>
+
+            <div class="prod">
+              <span style="flex: 1; min-width: 0">
+                <span class="prod-nombre">PAPAS GRANDES</span>
+                <span class="prod-meta" style="display: block">KG · EX-031 · Stock 12,5</span>
+              </span>
+              <span class="marca copia">12,5
+                <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              </span>
+            </div>
+
+            <div class="grupo" style="padding-top: 4px">Bebidas · 8 de 24</div>
+
+            <div class="prod">
+              <span style="flex: 1; min-width: 0">
+                <span class="prod-nombre">AGUA SOMOS 500 ML</span>
+                <span class="prod-meta" style="display: block">UNIDAD · BE-004 · Stock 40 · <span class="dif-pos">+5</span></span>
+              </span>
+              <span class="marca pendiente">45
+                <svg class="ico" style="width: 13px; height: 13px" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M5 18a4 4 0 0 1 .3-8A6 6 0 0 1 16 8"/></svg>
+              </span>
+            </div>
+
+            <div class="prod">
+              <span style="flex: 1; min-width: 0">
+                <span class="prod-nombre">COCA COLA 2 LT</span>
+                <span class="prod-meta" style="display: block">UNIDAD · BE-011 · Stock 18</span>
+              </span>
+              <span class="marca vacia"></span>
+            </div>
+          </div>
+
+          <div class="flotante">
+            <div class="degrade"></div>
+            <div class="flotante-base">
+              <div class="pastilla">
+                Terminar conteo
+                <svg class="ico" style="width: 16px; height: 16px" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="notas">
+        <li>Ciega por defecto. El <b>Stock</b> y la diferencia solo aparecen para administrador y supervisor.</li>
+        <li>El buscador filtra por nombre, código <b>y categoría</b>, sin acentos: "cafe" encuentra "CAFÉ".</li>
+        <li>Un conteo copiado abre filtrado en <b>Contados</b>; la primera tecla reemplaza la cantidad heredada.</li>
+        <li>La pastilla flota sobre un degradé para no comerle alto a la lista ni perderse contra las tarjetas.</li>
+      </ul>
+    </article>
+
+    <!-- ─────────────── 4. REVISIÓN ─────────────── -->
+    <article class="ficha">
+      <div class="ficha-titulo">
+        <span class="paso">04</span>
+        <h2>Revisión y ajuste</h2>
+      </div>
+
+      <div class="device">
+        <div class="pantalla">
+          <div class="sub-header revision">
+            <span class="flecha">‹</span>
+            <span class="sub-titulo">Revisión<span class="mudo" style="text-transform: none; letter-spacing: normal"> · Deposito · #12 · Juan Pérez</span></span>
+            <span class="badge-oscuro">34/81</span>
+          </div>
+
+          <div class="banda obs">
+            <svg class="ico" style="width: 13px; height: 13px; margin-top: 2px" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            "Faltó contar la cámara de frío, quedó para mañana"
+          </div>
+
+          <div class="banda copiado">
+            <svg class="ico" style="width: 13px; height: 13px; margin-top: 2px" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            6 cantidades vienen copiadas de un conteo anterior y nadie las volvió a contar. Se aplican igual.
+          </div>
+
+          <div class="strip">
+            <div>
+              <p class="rotulo">Sobrante <span>Bs</span></p>
+              <p class="valor" style="color: var(--kds-verde-texto)">+84,50</p>
+            </div>
+            <div>
+              <p class="rotulo">Faltante <span>Bs</span></p>
+              <p class="valor" style="color: var(--kds-rojo-texto)">−213,90</p>
+            </div>
+            <div>
+              <p class="rotulo">Neto <span>Bs</span></p>
+              <p class="valor">−129,40</p>
+            </div>
+          </div>
+
+          <div class="chips" style="padding-top: 8px">
+            <span class="chip activo">Todos (34)</span>
+            <span class="chip">Con diferencia (12)</span>
+            <span class="chip">Se movió (2)</span>
+          </div>
+
+          <div class="cols">
+            <span class="col-stock">Stock</span>
+            <span class="col-contado">Contado</span>
+            <span class="col-dif">Dif</span>
+          </div>
+
+          <div class="lista" style="padding-top: 6px">
+            <div class="fila-rev">
+              <span class="prod-nombre">AROS GRANDES DE CEBOLLA</span>
+              <div class="fila-rev-nums">
+                <span class="meta">UNIDAD · 16:54</span>
+                <span class="num stock">27</span>
+                <span class="num contado">24</span>
+                <span class="num dif" style="color: var(--kds-rojo-texto)">−3</span>
+              </div>
+            </div>
+
+            <div class="fila-rev">
+              <span class="prod-nombre">AGUA SOMOS 500 ML</span>
+              <div class="fila-rev-nums">
+                <span class="meta">UNIDAD · 16:58</span>
+                <span class="num stock">40</span>
+                <span class="num contado">45</span>
+                <span class="num dif" style="color: var(--kds-verde-texto)">+5</span>
+              </div>
+              <span class="aviso movio">
+                <svg class="ico" style="width: 12px; height: 12px" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                Movió desde la captura (stock hoy: 38)
+              </span>
+            </div>
+
+            <div class="fila-rev">
+              <span class="prod-nombre">PAPAS GRANDES</span>
+              <div class="fila-rev-nums">
+                <span class="meta">KG · 16:51</span>
+                <span class="num stock">12,5</span>
+                <span class="num contado">12,5</span>
+                <span class="num dif" style="color: var(--kds-mudo)">0</span>
+              </div>
+              <span class="aviso copiado">
+                <svg class="ico" style="width: 12px; height: 12px" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                Copiado, sin recontar
+              </span>
+            </div>
+          </div>
+
+          <div class="acciones">
+            <div class="btn-aplicar">
+              <svg class="ico" style="width: 16px; height: 16px" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Aplicar ajuste · pide PIN
+            </div>
+            <div class="acciones-sec">
+              <div class="btn-sec">Reabrir conteo</div>
+              <div class="btn-sec peligro">Anular</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="notas">
+        <li>El valorizado usa el costo vivo del producto. <b>Neto</b> es lo que se va a mover en pesos.</li>
+        <li><b>Se movió</b> marca el stock que cambió entre la captura y ahora: el ajuste suma el delta, no pisa el valor.</li>
+        <li>Las bandas de arriba dicen qué queda fuera: lo sin contar y lo copiado que nadie revisó.</li>
+        <li>Aplicar exige <b>re-tecleo del PIN</b> y corre en una sola transacción sobre las tablas del POS.</li>
+      </ul>
+    </article>
+
+  </div>
+
+  <footer>
+    <span>Aplicar escribe <code>Ajustes</code> + <code>DetallesAjustes</code> + <code>Productos.Stock&lt;N&gt;</code> en una transacción.</span>
+    <span>Ciclo propio en <code>KDS_Conteos</code> / <code>KDS_ConteoDetalles</code>.</span>
+  </footer>
+
+</div>

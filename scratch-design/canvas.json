@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Pin.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "1 · Gate PIN" },
+    { "file": "Conteos.dc.html", "x": 490, "y": 0, "w": 390, "h": 844, "title": "2 · Conteos" },
+    { "file": "Main.dc.html", "x": 980, "y": 0, "w": 390, "h": 844, "title": "3 · Captura" },
+    { "file": "Revision.dc.html", "x": 1470, "y": 0, "w": 390, "h": 844, "title": "4 · Revisión" }
+  ],
+  "annotations": [
+    { "id": "nota-ciego", "x": 980, "y": -150, "w": 300, "text": "Captura CIEGA: el contador nunca ve el stock del sistema. Diferencias solo en Revisión (Admin/Supervisor)." },
+    { "id": "nota-flujo", "x": 0, "y": -150, "w": 300, "text": "Flujo: PIN → lista → captura (buscar/escanear + teclado) → revisión → aplicar. Paleta y componentes del KDS actual." }
+  ],
+  "launch": { "view": "canvas" }
+}
