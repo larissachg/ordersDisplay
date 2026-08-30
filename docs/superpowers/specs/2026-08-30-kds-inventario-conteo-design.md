@@ -304,3 +304,59 @@ guardar → cámara sigue abierta. Código no encontrado → toast con el códig
 5. **Cámara** — BarcodeDetector + zxing + fallback foto, doc del flag Chrome.
 
 Cada etapa termina compilable y usable por sí sola.
+
+## 14. Diseño frontend
+
+Mockups aprobables en el canvas: https://claude.ai/code/artifact/0247c855-776a-455a-8ff7-5518bf36a7ef
+(4 pantallas 390×844: Gate PIN, Conteos, Captura, Revisión).
+
+### Qué hace la competencia (WISK, MarketMan, BevSpot, Partender, Supy, Odoo)
+
+Patrones que se repiten en las apps líderes de inventario gastronómico:
+
+- **Shelf-to-sheet**: la lista de conteo sigue el recorrido físico (zonas/
+  estantes), no el orden alfabético. V1 lo aproxima agrupando por categoría
+  (`TiposProductos`) con headers sticky; orden de recorrido configurable queda
+  como mejora futura.
+- **Búsqueda/escaneo primero**: buscador fijo arriba + escáner; flujo ráfaga
+  escanear → cantidad → guardar → siguiente (Odoo, WISK).
+- **Conteo ciego con reporte de varianza** para el gerente (Supy): idéntico a
+  nuestra decisión ciego + Revisión.
+- **Progreso visible** ("N de M contados") y estado por conteo.
+- **Multi-dispositivo paralelo** (WISK/Supy): descartado a propósito (un
+  usuario por conteo). **Offline total** (WISK): fuera de alcance; LAN local +
+  UI optimista con reintento alcanza.
+
+### Lenguaje visual: el del KDS actual
+
+Tokens levantados de `CorteResumenDialog.tsx` / `globals.css` / tailwind:
+
+- Paleta semáforo: verde `#80a76e`, ámbar `#eac568`, rojo `#d17f7f`,
+  gris primario `#626e78`, tinta `#2c3236`; fondos `#eef0f1`, cards blancas.
+- shadcn new-york, radius 0.5rem, sombras suaves, `tabular-nums` para números,
+  títulos bold uppercase, subtítulos `opacity-75`, separador "·".
+- Targets táctiles ≥ 44px; teclas de teclado numérico 58-64px.
+
+### Anatomía por pantalla
+
+1. **Gate PIN**: header gris "INVENTARIO / Restotech KDS", puntos de progreso,
+   teclado 3×4 (C / 0 / borrar), botón verde "Entrar", nota "el PIN no se
+   guarda en el dispositivo".
+2. **Conteos**: chip de usuario logueado en el header; sección "En curso"
+   (cards con badge de estado en color semáforo: abierto=verde,
+   revisión=ámbar, aplicado=gris, anulado=rojo; barra de progreso, antigüedad,
+   CTA contextual) + "Últimos 7 días" (filas compactas con Ajuste # y neto
+   valorizado); botón fijo inferior verde "Nuevo conteo".
+3. **Captura**: header compacto (almacén, tipo, conteo #, progreso N/M con
+   barra), buscador + botón escáner cuadrado, headers de categoría sticky
+   ("BEBIDAS · 12 de 24"), filas producto (nombre, presentación · unidad ·
+   código; contado = pill verde con cantidad + check, pendiente = círculo
+   punteado). Tap abre bottom-sheet: nombre + display grande de cantidad,
+   teclado 3×4 con coma decimal, botón observación, "Guardar y siguiente"
+   verde. SIN stock del sistema (ciego).
+4. **Revisión** (header ámbar): strip Sobrante/Faltante/Neto valorizado,
+   chips de filtro (Con diferencia / Deriva / Todos), filas con columnas
+   Sistema·Contado·Dif (dif coloreada verde/rojo/gris), badge ámbar de deriva
+   ("Movió desde la captura: se vendieron 2") cuando stock vivo ≠ snapshot,
+   observaciones del contador inline; barra inferior: "Aplicar ajuste · pide
+   PIN" (verde, candado), "Reabrir conteo", "Anular" (rojo suave).
