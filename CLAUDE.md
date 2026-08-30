@@ -73,6 +73,11 @@ and the dev server ends up referencing deleted chunks (blank page, `Cannot find 
 
 ### Inventario (conteos y ajustes) (2026-08)
 
+`/config` acepta un tercer tipo de pantalla además de equipos y estaciones:
+`localStorage.equipo = 'inventario'` (constante `EQUIPO_INVENTARIO`), y
+`PantallaPrincipal.tsx` enruta ese marcador a `InventarioApp`, así una tablet abre
+directo el módulo.
+
 `/inventario` es una app mobile-first, independiente del `equipo`: conteo físico de
 stock que se aplica como **ajuste en las tablas del POS**. Auth **stateless por PIN**:
 no hay sesión ni cookie — el PIN viaja en cada request (header `x-kds-pin` en los GET,
@@ -98,7 +103,27 @@ cabecera; todo lo demás es `.input()` parametrizado.
 Roles hardcodeados en `src/contants/inventario.ts` por `Meseros.TipoUsuarioID`: contar =
 1/7/8 (admin, supervisor, almacenero); ver diferencias, aplicar y reabrir = 1/7. La
 captura es **ciega** para quien no ve diferencias: el payload viaja con
-`stockSnapshot`/`stockVivo`/`costo` en 0. Degradación grácil como en `getCocina.ts`:
+`stockSnapshot`/`stockVivo`/`costo` en 0 y `ProductoContable.stock` en `null`; para
+1/7 la fila muestra el stock del sistema y la diferencia.
+
+Tres cosas que no son obvias leyendo el código:
+
+- **Cola de reintento en la captura.** Un `PUT` de captura que falla por red o 5xx se
+  encola y se reintenta con backoff (2/4/8/15 s) y al evento `online`. Los 4xx NO se
+  encolan: repetirlos no los arregla. La cola se indexa por producto y cada captura
+  lleva un `seq`, para que un reintento viejo no pise una cantidad más nueva. El
+  `PUT` del servidor es `UPDATE` + `IF @@ROWCOUNT = 0 INSERT`, con reintento ante
+  2627/2601, y el `UNIQUE (ConteoID, ProductoID)` como red final. No se puede cerrar
+  un conteo con capturas pendientes.
+- **Copiar un conteo anterior.** `copiarDetalles` clona productos y cantidades, pero
+  toma el `StockSnapshot` de HOY — heredarlo mediría el delta contra el stock de ayer.
+  Las filas quedan con `Copiado = 1` (columna agregada por un `ALTER` guardado con
+  `COL_LENGTH` dentro de `ensureTablasConteo`) hasta que alguien las recuenta; la
+  revisión las lista aparte porque **se aplican igual** aunque nadie las haya mirado.
+- **Presentación, no `UnidadContenido`.** La unidad que se muestra y en la que se
+  cuenta es `Productos.Presentacion`. En las bases relevadas `UnidadContenido` repite
+  a `Presentacion` en la mayoría de los productos y donde difiere es el empaque de
+  compra (ARROBA, CAJA), que induce a contar en la unidad equivocada. Degradación grácil como en `getCocina.ts`:
 error SQL 208 (tabla ausente) → lista vacía y el sheet de alta avisa que el POS no tiene
 almacenes; `TiposProductos.NoVendibles` y `Productos.CostoBruto` se resuelven con
 `COL_LENGTH`. El escáner (`EscanerCodigo.tsx`) baja en 3 capas: `BarcodeDetector` nativo →
@@ -115,6 +140,17 @@ Persisted in the `KDS_Snooze` table (`VisitaID`, `Orden`, `Snoozed`, `Resaltado`
 ### Time handling
 
 Business timezone is hardcoded `America/La_Paz` (moment-timezone) for day bounds and `Terminado` timestamps, while `.env` sets `TZ=UTC` and the mssql pool uses `useUTC: false`. `hora` values get `.replace('Z', '')` on the client before feeding the elapsed-time timer. Be careful changing anything here; it is deliberately balanced.
+
+### PWA (2026-08)
+
+`src/app/manifest.ts` (servido en `/manifest.webmanifest`), `public/sw.js` y
+`RegistrarServiceWorker.tsx` hacen el KDS instalable. El service worker **solo se
+registra en producción y en contexto seguro**: en `next dev` los chunks de
+`/_next/static` cambian en cada recompilación y cachearlos reproduce el bug de
+"Cannot find module './NNN.js'". Nunca cachea `/api/` — un pedido o un stock viejo es
+peor que un error. Navegación: red primero, cache solo si la red falla. Por HTTP plano
+Chrome no registra service workers ni ofrece instalar: hace falta HTTPS o el flag
+`unsafely-treat-insecure-origin-as-secure`, el mismo que ya pide la cámara del escáner.
 
 ## Deployment
 

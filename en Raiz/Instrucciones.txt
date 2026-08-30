@@ -29,3 +29,15 @@ Paso 4 (opcional).- Camara para escanear codigos en Inventario
  - Sin ese flag el modulo sigue funcionando: el boton de escanear pasa al modo
    "Tomar foto" (se saca una foto del codigo y la app la decodifica), y el lector
    de codigos USB/bluetooth funciona siempre desde el buscador.
+
+
+Paso 5 (opcional).- Instalar el KDS como app en la tablet
+ - Con el flag del Paso 4 activo (o con HTTPS), Chrome ofrece instalar el sitio
+   como aplicacion: menu de Chrome -> "Instalar aplicacion" / "Agregar a la
+   pantalla de inicio".
+ - Queda un icono propio, abre sin barra de direcciones y en pantalla completa.
+ - Sin el flag Chrome solo crea un acceso directo comun, que abre una pestana
+   normal del navegador. Funciona igual, se ve peor.
+ - Sigue necesitando la red del local: la app NO trabaja sin conexion al
+   servidor. Lo unico que queda cacheado son las imagenes, sonidos y archivos
+   del sitio, para que abra mas rapido.
