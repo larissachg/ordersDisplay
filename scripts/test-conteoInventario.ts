@@ -16,10 +16,11 @@ const base: Omit<
   'productoId' | 'cantidadContada' | 'stockSnapshot' | 'stockVivo' | 'costo'
 > = {
   nombre: 'x',
-  unidad: 'und',
+  presentacion: 'und',
   tipoProducto: 'Bebidas',
   observacion: '',
-  fechaConteo: '2026-08-30 18:20:00'
+  fechaConteo: '2026-08-30 18:20:00',
+  copiado: false
 }
 
 const detalles: ConteoDetalleDb[] = [
