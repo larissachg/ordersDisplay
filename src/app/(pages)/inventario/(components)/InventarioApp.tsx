@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PinGate } from './PinGate'
+import { ListaConteos } from './ListaConteos'
+import { NuevoConteoSheet } from './NuevoConteoSheet'
+import { CapturaConteo } from './CapturaConteo'
+import { RevisionConteo } from './RevisionConteo'
 import { SesionInventario } from '@/interfaces/Inventario'
 
 const INACTIVIDAD_MS = 10 * 60 * 1000
@@ -68,7 +72,6 @@ export const InventarioApp = () => {
           }}
         />
       ) : (
-        // Las vistas se completan en las Tareas 10 y 13; por ahora placeholder funcional.
         <VistaActual pin={pin} sesion={sesion} vista={vista} setVista={setVista} />
       )}
     </div>
@@ -86,11 +89,58 @@ const VistaActual = ({
   vista: Vista
   setVista: (v: Vista) => void
 }) => {
-  void pin
-  void sesion
-  void vista
-  void setVista
-  return <div className='p-6 text-[#626e78]'>Lista de conteos (Tarea 10)</div>
+  const [nuevoAbierto, setNuevoAbierto] = useState(false)
+
+  if (vista.tipo === 'captura') {
+    return (
+      <CapturaConteo
+        pin={pin}
+        sesion={sesion}
+        conteoId={vista.conteoId}
+        onVolver={() => setVista({ tipo: 'lista' })}
+        onTerminar={async () => {
+          // Cerrar pasa el conteo a revision; si falla, la pantalla de revision
+          // lo muestra igual en su estado real.
+          await fetch(`/api/inventario/conteos/${vista.conteoId}/cerrar`, {
+            method: 'POST',
+            body: JSON.stringify({ pin })
+          }).catch(() => null)
+          setVista({ tipo: 'revision', conteoId: vista.conteoId })
+        }}
+      />
+    )
+  }
+  if (vista.tipo === 'revision') {
+    return (
+      <RevisionConteo
+        pin={pin}
+        sesion={sesion}
+        conteoId={vista.conteoId}
+        onVolver={() => setVista({ tipo: 'lista' })}
+      />
+    )
+  }
+  return (
+    <>
+      <ListaConteos
+        pin={pin}
+        sesion={sesion}
+        onAbrirCaptura={(conteoId) => setVista({ tipo: 'captura', conteoId })}
+        onAbrirRevision={(conteoId) => setVista({ tipo: 'revision', conteoId })}
+        onNuevo={() => setNuevoAbierto(true)}
+      />
+      {nuevoAbierto && (
+        <NuevoConteoSheet
+          pin={pin}
+          onCerrar={() => setNuevoAbierto(false)}
+          onCreado={(conteoId) => {
+            setNuevoAbierto(false)
+            setVista({ tipo: 'captura', conteoId })
+          }}
+        />
+      )}
+    </>
+  )
 }
 
 export type { Vista }
