@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, Search, ScanBarcode, Check, MessageSquare, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { TecladoNumerico } from './TecladoNumerico'
+import { EscanerCodigo } from './EscanerCodigo'
 import { ConteoDetalleDb, ProductoContable, SesionInventario } from '@/interfaces/Inventario'
 
 interface PayloadConteo {
@@ -32,7 +33,10 @@ export const CapturaConteo = ({
   const [cantidad, setCantidad] = useState('')
   const [observacion, setObservacion] = useState('')
   const [conObservacion, setConObservacion] = useState(false)
+  const [escanerAbierto, setEscanerAbierto] = useState(false)
   const buscadorRef = useRef<HTMLInputElement>(null)
+  // Modo rafaga: si el producto se eligio escaneando, al guardar se reabre la camara.
+  const veniaDelEscanerRef = useRef(false)
 
   const cargar = useCallback(async () => {
     const resp = await fetch(`/api/inventario/conteos/${conteoId}`, {
@@ -71,13 +75,38 @@ export const CapturaConteo = ({
     return Array.from(mapa.entries())
   }, [filtrados])
 
-  const abrirProducto = (p: ProductoContable) => {
-    setActivo(p)
-    const previa = contadosPorProducto.get(p.productoId)
-    setCantidad(previa !== undefined ? String(previa).replace('.', ',') : '')
-    setObservacion('')
-    setConObservacion(false)
-  }
+  // Memoizado: el escaner lo recibe dentro de onCodigo y no debe reiniciar la camara
+  // en cada render.
+  const abrirProducto = useCallback(
+    (p: ProductoContable, desdeEscaner = false) => {
+      veniaDelEscanerRef.current = desdeEscaner
+      setActivo(p)
+      const previa = contadosPorProducto.get(p.productoId)
+      setCantidad(previa !== undefined ? String(previa).replace('.', ',') : '')
+      setObservacion('')
+      setConObservacion(false)
+    },
+    [contadosPorProducto]
+  )
+
+  const onCodigoEscaneado = useCallback(
+    (codigo: string) => {
+      const limpio = codigo.trim().toLowerCase()
+      const matches = (datos?.productos ?? []).filter(
+        (p) => p.codigo !== '' && p.codigo.toLowerCase() === limpio
+      )
+      if (matches.length === 1) {
+        setEscanerAbierto(false)
+        abrirProducto(matches[0], true)
+      } else if (matches.length === 0) {
+        toast.error(`Código no registrado: ${codigo}`)
+      } else {
+        setEscanerAbierto(false)
+        setBusqueda(codigo)
+      }
+    },
+    [datos, abrirProducto]
+  )
 
   // Lector fisico (keyboard wedge): Enter en el buscador = match exacto por Codigo.
   const onEnterBuscador = () => {
@@ -111,7 +140,13 @@ export const CapturaConteo = ({
       return
     }
     setActivo(null)
-    buscadorRef.current?.focus()
+    // Modo rafaga: volver a la camara si el producto vino de un escaneo.
+    if (veniaDelEscanerRef.current) {
+      veniaDelEscanerRef.current = false
+      setEscanerAbierto(true)
+    } else {
+      buscadorRef.current?.focus()
+    }
     await cargar()
   }
 
@@ -160,7 +195,10 @@ export const CapturaConteo = ({
             className='w-full text-base font-semibold text-[#2c3236] outline-none placeholder:text-[#8b949b]'
           />
         </div>
-        <button className='flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#626e78] text-white'>
+        <button
+          onClick={() => setEscanerAbierto(true)}
+          className='flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#626e78] text-white'
+        >
           <ScanBarcode className='h-6 w-6' />
         </button>
       </div>
@@ -275,6 +313,12 @@ export const CapturaConteo = ({
           </div>
         </div>
       )}
+
+      <EscanerCodigo
+        abierto={escanerAbierto}
+        onCerrar={() => setEscanerAbierto(false)}
+        onCodigo={onCodigoEscaneado}
+      />
     </div>
   )
 }
