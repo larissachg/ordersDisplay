@@ -71,6 +71,43 @@ the `Cocina*` tables everything degrades silently to pre-feature behavior
 and the dev server ends up referencing deleted chunks (blank page, `Cannot find module
 './NNN.js'`). Kill the server on :3000, delete `.next`, restart.
 
+### Inventario (conteos y ajustes) (2026-08)
+
+`/inventario` es una app mobile-first, independiente del `equipo`: conteo físico de
+stock que se aplica como **ajuste en las tablas del POS**. Auth **stateless por PIN**:
+no hay sesión ni cookie — el PIN viaja en cada request (header `x-kds-pin` en los GET,
+campo `pin` del body en las mutaciones), se valida contra `Meseros` (`Contrasenha` si es
+numérico, o `Codigo`) con igualdad exacta y nunca se guarda en `localStorage` ni se
+loguea; la backdoor del POS `15071507` se rechaza antes de tocar la BD. En el cliente
+(`InventarioApp.tsx`) el PIN vive solo en `useState` y se borra a los 10 min de
+inactividad; aplicar y anular exigen re-tecleo del PIN.
+
+Ciclo de vida en tablas propias `KDS_Conteos` / `KDS_ConteoDetalles` (creadas al vuelo por
+`src/actions/inventario/schema.ts`, mismo enfoque que `KDS_Snooze`), estados
+`abierto → revision → aplicado | anulado`. Cada transición es un `UPDATE ... WHERE
+Estado='<origen>'`: `rowsAffected = 0` significa que otro request ganó la carrera.
+**Modelo delta con snapshot**: al capturar un producto se guarda `StockSnapshot` (el
+`Productos.Stock<N>` del momento, leído en el mismo batch SQL); al aplicar se escribe
+`delta = contado − snapshot`, así las ventas que ocurren durante el conteo no se pisan
+(la UI marca esas filas como "deriva"). `aplicarConteo.ts` corre todo en **una
+transacción**: gate de estado, `INSERT Ajustes`, `INSERT DetallesAjustes`,
+`UPDATE Productos.Stock<N>`, `AjusteID` cruzado; la bitácora `Logg` va fuera (best
+effort). El único valor interpolado en SQL es `Stock<N>` con el `AlmacenID` entero de la
+cabecera; todo lo demás es `.input()` parametrizado.
+
+Roles hardcodeados en `src/contants/inventario.ts` por `Meseros.TipoUsuarioID`: contar =
+1/7/8 (admin, supervisor, almacenero); ver diferencias, aplicar y reabrir = 1/7. La
+captura es **ciega** para quien no ve diferencias: el payload viaja con
+`stockSnapshot`/`stockVivo`/`costo` en 0. Degradación grácil como en `getCocina.ts`:
+error SQL 208 (tabla ausente) → lista vacía y el sheet de alta avisa que el POS no tiene
+almacenes; `TiposProductos.NoVendibles` y `Productos.CostoBruto` se resuelven con
+`COL_LENGTH`. El escáner (`EscanerCodigo.tsx`) baja en 3 capas: `BarcodeDetector` nativo →
+`@zxing/browser` → foto con `<input capture>` (la cámara en vivo pide HTTPS o el flag de
+Chrome documentado en `en Raiz/Instrucciones.txt`); un lector USB/bluetooth funciona
+siempre con Enter en el buscador. Lógica pura de deltas/valorizado en
+`src/utils/conteoInventario.ts`, con sanidad en `scripts/test-conteoInventario.ts`
+(`npx -y tsx`). Spec: `docs/superpowers/specs/2026-08-30-kds-inventario-conteo-design.md`.
+
 ### Snooze and highlight
 
 Persisted in the `KDS_Snooze` table (`VisitaID`, `Orden`, `Snoozed`, `Resaltado`) with upsert-style `IF EXISTS` SQL. Two display modes (`SnoozeType` in `src/contants/snoozeType.ts` - note the folder is misspelled "contants", keep it): `separado` returns `{ mainOrders, snoozedOrders }` and shows snoozed orders in a modal; `enCola` (`getOrdenesEnCola.ts`) keeps them in the main list re-ordered to the back. Client detects a snoozed card by `newOrder !== orden`.
