@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; }
+    a { color: #626e78; } a:hover { color: #2c3236; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #eef0f1; overflow: hidden;">
+
+  <div style="background: #626e78; color: #ffffff; padding: 18px 20px 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+    <div>
+      <div style="font-size: 26px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1;">Inventario</div>
+      <div style="margin-top: 4px; font-size: 14px; font-weight: 600; opacity: 0.75;">Restotech KDS</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.16); border-radius: 999px; padding: 8px 14px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      <span style="font-size: 14px; font-weight: 700;">Marcos · Supervisor</span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; overflow: hidden; padding: 18px 16px 0 16px; display: flex; flex-direction: column; gap: 18px;">
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8b949b;">En curso</div>
+
+      <div style="background: #ffffff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(44,50,54,0.08); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="font-size: 19px; font-weight: 700; color: #2c3236;">Depósito central</div>
+          <div style="background: #80a76e; color: #2c3236; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 5px 12px;">Abierto</div>
+        </div>
+        <div style="font-size: 14px; color: #8b949b; font-weight: 600;">Vendibles · Conteo #7 · Marcos · hace 25 min</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: #2c3236;">
+            <span>Progreso</span>
+            <span style="font-variant-numeric: tabular-nums;">42 / 118</span>
+          </div>
+          <div style="height: 10px; border-radius: 999px; background: #e5e8ea; overflow: hidden;">
+            <div style="height: 100%; width: 36%; border-radius: 999px; background: #80a76e;"></div>
+          </div>
+        </div>
+        <div style="height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; background: #626e78; color: #ffffff; border-radius: 8px; font-size: 16px; font-weight: 700;">
+          Continuar conteo
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(44,50,54,0.08); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="font-size: 19px; font-weight: 700; color: #2c3236;">Barra</div>
+          <div style="background: #eac568; color: #2c3236; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 5px 12px;">Revisión</div>
+        </div>
+        <div style="font-size: 14px; color: #8b949b; font-weight: 600;">Vendibles · Conteo #6 · Julia · 64 contados · hace 2 h</div>
+        <div style="height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; background: #ffffff; border: 2px solid #eac568; color: #2c3236; border-radius: 8px; font-size: 16px; font-weight: 700;">
+          Revisar diferencias
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8b949b;">Últimos 7 días</div>
+      <div style="background: #ffffff; border-radius: 10px; box-shadow: 0 1px 3px rgba(44,50,54,0.08); display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #eef0f1;">
+          <div style="width: 10px; height: 10px; border-radius: 999px; background: #626e78;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 15px; font-weight: 700; color: #2c3236;">Depósito central</div>
+            <div style="font-size: 13px; color: #8b949b; font-weight: 600;">Aplicado ayer 23:10 · Ajuste #1042 · −Bs 320</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b6bcc1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #eef0f1;">
+          <div style="width: 10px; height: 10px; border-radius: 999px; background: #626e78;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 15px; font-weight: 700; color: #2c3236;">Cocina · No vendibles</div>
+            <div style="font-size: 13px; color: #8b949b; font-weight: 600;">Aplicado lun 22:40 · Ajuste #1038 · −Bs 210</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b6bcc1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px;">
+          <div style="width: 10px; height: 10px; border-radius: 999px; background: #d17f7f;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 15px; font-weight: 700; color: #2c3236;">Barra</div>
+            <div style="font-size: 13px; color: #8b949b; font-weight: 600;">Anulado dom 19:05 · por Marcos</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b6bcc1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 14px 16px 20px 16px; background: #eef0f1;">
+    <div style="height: 56px; display: flex; align-items: center; justify-content: center; gap: 10px; background: #80a76e; color: #2c3236; border-radius: 8px; font-size: 19px; font-weight: 700; box-shadow: 0 2px 6px rgba(44,50,54,0.15);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Nuevo conteo
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

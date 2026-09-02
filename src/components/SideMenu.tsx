@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ChevronRight, History, ListOrdered, Settings } from "lucide-react";
+import { ChevronRight, History, ListOrdered, Package, Settings } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -66,6 +66,13 @@ export const SideMenu = () => {
                 className="flex items-center gap-3  "
               >
                 <History width={35} height={35} /> Historial
+              </Link>
+              <Link
+                href={"/inventario"}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3  "
+              >
+                <Package width={35} height={35} /> Inventario
               </Link>
 
               {showConfig && (

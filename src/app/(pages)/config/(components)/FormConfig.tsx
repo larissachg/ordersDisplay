@@ -20,6 +20,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import { SnoozeType } from '@/contants/snoozeType'
+import { EQUIPO_INVENTARIO } from '@/contants/inventario'
 
 const themeColors = {
   primary: process.env.NEXT_PUBLIC_PRIMARY_COLOR
@@ -36,6 +37,9 @@ export const FormConfig = () => {
   const [estaciones, setEstaciones] = useState<Estacion[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const esEstacion = nombreEquipo.startsWith('estacion:')
+  const esInventario = nombreEquipo === EQUIPO_INVENTARIO
+  // Ni las estaciones ni el inventario usan la grilla de ordenes.
+  const esPantallaDeOrdenes = !esEstacion && !esInventario
 
   const getEquipos = useCallback(async () => {
     try {
@@ -97,7 +101,11 @@ export const FormConfig = () => {
     localStorage.setItem('enableSnooze', enableSnooze)
     localStorage.setItem('snoozeType', snoozeType)
 
-    toast(`Equipo registrado exitosamente, ${nombreEquipo}`, {
+    const etiqueta =
+      nombreEquipo === EQUIPO_INVENTARIO
+        ? 'Dispositivo de inventario'
+        : nombreEquipo
+    toast(`Equipo registrado exitosamente, ${etiqueta}`, {
       style: {
         backgroundColor: '#d6edda',
         color: 'green'
@@ -161,13 +169,19 @@ export const FormConfig = () => {
                           ))}
                         </SelectGroup>
                       )}
+                      <SelectGroup>
+                        <SelectLabel>Otros</SelectLabel>
+                        <SelectItem value={EQUIPO_INVENTARIO}>
+                          Dispositivo de inventario
+                        </SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 ) : (
                   <p>Cargando equipos...</p>
                 )}
 
-                {!esEstacion && (
+                {esPantallaDeOrdenes && (
                   <>
                     <Label htmlFor='desglose'>Con Desglose:</Label>
                     <Checkbox
@@ -180,37 +194,48 @@ export const FormConfig = () => {
                   </>
                 )}
 
-                <Label htmlFor='columns'>Número de columnas (1-5):</Label>
-                <Select onValueChange={setColumns} value={columns}>
-                  <SelectTrigger>
-                    <SelectValue placeholder='Columnas' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {esInventario && (
+                  <p className='text-sm text-muted-foreground'>
+                    Al abrir, este dispositivo entra directo al módulo de
+                    inventario. Cada usuario se identifica con su código del POS.
+                  </p>
+                )}
 
-                <Label htmlFor='rows'>Número de filas (mínimo 3):</Label>
-                <Select onValueChange={setRows} value={rows}>
-                  <SelectTrigger>
-                    <SelectValue placeholder='Filas' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!esInventario && (
+                  <>
+                    <Label htmlFor='columns'>Número de columnas (1-5):</Label>
+                    <Select onValueChange={setColumns} value={columns}>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Columnas' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Label htmlFor='rows'>Número de filas (mínimo 3):</Label>
+                    <Select onValueChange={setRows} value={rows}>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Filas' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
               </div>
             </div>
 
-            {!esEstacion && (
+            {esPantallaDeOrdenes && (
               <>
                 {/* Separador */}
                 <Separator className='my-4' />

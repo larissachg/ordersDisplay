@@ -17,3 +17,27 @@ Paso 3.- agregar una tarea automatica
                       Es importante seleccionar el archivo llamado tareaProgramada.bat
   - Condiciones: desmarcar uso de corriente -> revisar screenshot
   - Configuracion: revisar screenshot
+
+Paso 4 (opcional).- Camara para escanear codigos en Inventario
+ - La pantalla de Inventario (http://<ip-del-servidor>:3000/inventario) puede leer
+   codigos de barras con la camara del celular o tablet. Los navegadores solo dan
+   acceso a la camara en HTTPS o en localhost, y la app se sirve por HTTP.
+ - Para habilitarla en cada tablet/celular con Chrome:
+     1) abrir chrome://flags/#unsafely-treat-insecure-origin-as-secure
+     2) escribir http://<ip-del-servidor>:3000 en la caja de texto
+     3) poner el flag en Enabled y relanzar Chrome
+ - Sin ese flag el modulo sigue funcionando: el boton de escanear pasa al modo
+   "Tomar foto" (se saca una foto del codigo y la app la decodifica), y el lector
+   de codigos USB/bluetooth funciona siempre desde el buscador.
+
+
+Paso 5 (opcional).- Instalar el KDS como app en la tablet
+ - Con el flag del Paso 4 activo (o con HTTPS), Chrome ofrece instalar el sitio
+   como aplicacion: menu de Chrome -> "Instalar aplicacion" / "Agregar a la
+   pantalla de inicio".
+ - Queda un icono propio, abre sin barra de direcciones y en pantalla completa.
+ - Sin el flag Chrome solo crea un acceso directo comun, que abre una pestana
+   normal del navegador. Funciona igual, se ve peor.
+ - Sigue necesitando la red del local: la app NO trabaja sin conexion al
+   servidor. Lo unico que queda cacheado son las imagenes, sonidos y archivos
+   del sitio, para que abra mas rapido.
