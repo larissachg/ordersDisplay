@@ -217,7 +217,7 @@ const SnoozedOrdersList = ({
                         </div>
                         {producto.combos.map((combo, index) => (
                           <ul
-                            className='font-semibold pl-5 text-2xl leading-6'
+                            className='font-medium pl-8 -indent-3 text-xl leading-6'
                             key={index}
                           >
                             <li>
@@ -226,7 +226,7 @@ const SnoozedOrdersList = ({
                           </ul>
                         ))}
                         {producto.observacion && (
-                          <p className='font-semibold pl-5 text-2xl leading-6'>
+                          <p className='font-bold pl-8 -indent-3 text-xl leading-6'>
                             - {producto.observacion}
                           </p>
                         )}

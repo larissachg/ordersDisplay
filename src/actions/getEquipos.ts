@@ -7,7 +7,8 @@ export async function getEquiposDb(): Promise<Equipo[]> {
   try {
     const pool = await getPool()
     const result = await pool.request().query(`
-      select Nombre as nombre, NombreFisico as nombreFisico from Impresoras where esMonitorDigital =1
+      select Nombre as nombre, NombreFisico as nombreFisico from Impresoras
+      where esMonitorDigital = 1 and COALESCE(NombreFisico, '') <> ''
       UNION select 'Despacho Todo', 'DespachoToptech'
       UNION select 'Despacho Delivery', 'DespachoToptechDelivery'
       UNION select 'Despacho en Local', 'DespachoToptechMesa'

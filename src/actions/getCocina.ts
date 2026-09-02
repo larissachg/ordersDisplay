@@ -28,6 +28,7 @@ export interface CargaFilaDb {
 
 // Fila cruda: producto pendiente por (orden, estacion, observacion).
 // lineaMin = menor DetalleCuentaID agrupado, para respetar el orden de carga.
+// esHijoCombo = 1 cuando el producto viene resuelto desde un hijo de combo.
 export interface ProductoFilaDb {
   visitaId: number
   orden: number
@@ -36,6 +37,26 @@ export interface ProductoFilaDb {
   observacion: string | null
   cantidad: number
   lineaMin: number
+  esHijoCombo: number
+}
+
+// Fila cruda: linea de combo con trabajo en la estacion (config de sus hijos).
+export interface ComboFilaDb {
+  visitaId: number
+  orden: number
+  detalleCuentaId: number
+  estacionCocinaId: number
+  combo: string
+  cantidad: number
+  observacion: string | null
+}
+
+// Fila cruda: opcional elegido de una linea de combo (desglose de la vista armado).
+export interface ComboHijoFilaDb {
+  detalleCuentaId: number
+  hijo: string
+  cantidad: number
+  ordenRow: number
 }
 
 export interface ResultadoCortes {
@@ -44,6 +65,9 @@ export interface ResultadoCortes {
   enEspera: Corte | null
   filas: CargaFilaDb[]
   productos: ProductoFilaDb[]
+  combos: ComboFilaDb[]
+  comboHijos: ComboHijoFilaDb[]
+  tipoEnvioPorOrden: Record<string, string | null> // clave 'visitaId|orden'
 }
 
 // CTE compartido: TODAS las ordenes con items pendientes de hoy (el pintado ya
@@ -93,7 +117,16 @@ export async function getEstacionesDb(): Promise<Estacion[]> {
 export async function getCortesCocina(): Promise<ResultadoCortes> {
   const estaciones = await getEstacionesDb()
   if (estaciones.length === 0)
-    return { estaciones: [], cortes: [], enEspera: null, filas: [], productos: [] }
+    return {
+      estaciones: [],
+      cortes: [],
+      enEspera: null,
+      filas: [],
+      productos: [],
+      combos: [],
+      comboHijos: [],
+      tipoEnvioPorOrden: {}
+    }
 
   const now = moment().tz('America/La_Paz')
   const startOfToday = now.startOf('day').format('YYYY-MM-DD HH:mm:ss')
@@ -114,8 +147,11 @@ export async function getCortesCocina(): Promise<ResultadoCortes> {
     .query(`${CTE_PENDIENTES}
 SELECT pe.VisitaID AS visitaId, pe.Orden AS orden,
        CAST(MIN(pe.HoraEfectiva) AS DATETIME) AS horaEfectiva,
-       MAX(CASE WHEN ks.Resaltado = 1 THEN 1 ELSE 0 END) AS resaltado
+       MAX(CASE WHEN ks.Resaltado = 1 THEN 1 ELSE 0 END) AS resaltado,
+       MAX(te.Nombre) AS tipoEnvio
 FROM Pendientes pe
+INNER JOIN Visitas v ON v.ID = pe.VisitaID
+LEFT JOIN TipoEnvios te ON te.TipoEnvioID = v.TipoEnvioID
 LEFT JOIN KDS_Snooze ks ON ks.VisitaID = pe.VisitaID AND ks.Orden = pe.Orden
 GROUP BY pe.VisitaID, pe.Orden`)
 
@@ -161,7 +197,7 @@ GROUP BY ci.VisitaID, ci.Orden, ci.EstacionCocinaID, ci.Componente`)
     .query(`${CTE_PENDIENTES},
 ItemEstacion AS (
   SELECT VisitaID, Orden, EstacionCocinaID, ProductoID, Cantidad, Observacion,
-         DetalleCuentaID AS LineaID
+         DetalleCuentaID AS LineaID, 0 AS EsHijoCombo
   FROM (
     SELECT DISTINCT pe.VisitaID, pe.Orden, cc.EstacionCocinaID, pe.ProductoID,
            pe.DetalleCuentaID, pe.Cantidad, o.Observacion
@@ -172,7 +208,7 @@ ItemEstacion AS (
   ) directos
   UNION ALL
   SELECT VisitaID, Orden, EstacionCocinaID, ProductoID, 1 AS Cantidad, Observacion,
-         DetalleCuentaID AS LineaID
+         DetalleCuentaID AS LineaID, 1 AS EsHijoCombo
   FROM (
     SELECT DISTINCT pe.VisitaID, pe.Orden, cc.EstacionCocinaID, pc.ProductoID,
            pc.ProductoComboID, pe.DetalleCuentaID, o.Observacion
@@ -185,18 +221,57 @@ ItemEstacion AS (
 )
 SELECT ie.VisitaID AS visitaId, ie.Orden AS orden, ie.EstacionCocinaID AS estacionCocinaId,
        p.Nombre AS producto, ie.Observacion AS observacion, SUM(ie.Cantidad) AS cantidad,
-       MIN(ie.LineaID) AS lineaMin
+       MIN(ie.LineaID) AS lineaMin, ie.EsHijoCombo AS esHijoCombo
 FROM ItemEstacion ie
 INNER JOIN Productos p ON p.ID = ie.ProductoID
-GROUP BY ie.VisitaID, ie.Orden, ie.EstacionCocinaID, p.Nombre, ie.Observacion`)
+GROUP BY ie.VisitaID, ie.Orden, ie.EstacionCocinaID, p.Nombre, ie.Observacion, ie.EsHijoCombo`)
   const productos = productosResult.recordset as ProductoFilaDb[]
 
+  // Lineas de combo con trabajo en cada estacion (vista armado: el combo se
+  // muestra con su nombre y el desglose de opcionales, como en la pantalla
+  // principal). La relevancia la da la config de cocina de sus hijos.
+  const combosResult = await pool
+    .request()
+    .input('startOfToday', sql.VarChar, startOfToday)
+    .input('startOfTomorrow', sql.VarChar, startOfTomorrow)
+    .query(`${CTE_PENDIENTES},
+ComboEstacion AS (
+  SELECT DISTINCT pe.VisitaID, pe.Orden, pe.DetalleCuentaID, pe.ProductoID,
+         pe.Cantidad, cc.EstacionCocinaID
+  FROM Pendientes pe
+  INNER JOIN ProductosCombos pc ON pc.DetalleCuentaID = pe.DetalleCuentaID
+  INNER JOIN CocinaComponentesProductos ccp ON ccp.ProductoID = pc.ProductoID
+  INNER JOIN CocinaComponentes cc ON cc.ComponenteCocinaID = ccp.ComponenteCocinaID
+)
+SELECT ce.VisitaID AS visitaId, ce.Orden AS orden, ce.DetalleCuentaID AS detalleCuentaId,
+       ce.EstacionCocinaID AS estacionCocinaId, p.Nombre AS combo, ce.Cantidad AS cantidad,
+       o.Observacion AS observacion
+FROM ComboEstacion ce
+INNER JOIN Productos p ON p.ID = ce.ProductoID
+LEFT JOIN Observaciones o ON o.DetalleCuentaID = ce.DetalleCuentaID`)
+  const combos = combosResult.recordset as ComboFilaDb[]
+
+  const comboHijosResult = await pool
+    .request()
+    .input('startOfToday', sql.VarChar, startOfToday)
+    .input('startOfTomorrow', sql.VarChar, startOfTomorrow)
+    .query(`${CTE_PENDIENTES}
+SELECT pc.DetalleCuentaID AS detalleCuentaId, p.Nombre AS hijo,
+       COUNT(*) AS cantidad, MIN(pc.ProductoComboID) AS ordenRow
+FROM Pendientes pe
+INNER JOIN ProductosCombos pc ON pc.DetalleCuentaID = pe.DetalleCuentaID
+INNER JOIN Productos p ON p.ID = pc.ProductoID
+GROUP BY pc.DetalleCuentaID, p.Nombre`)
+  const comboHijos = comboHijosResult.recordset as ComboHijoFilaDb[]
+
   const porOrden = new Map<string, OrdenCarga>()
+  const tipoEnvioPorOrden: Record<string, string | null> = {}
   for (const r of ordenesResult.recordset as {
     visitaId: number
     orden: number
     horaEfectiva: Date
     resaltado: number
+    tipoEnvio: string | null
   }[]) {
     porOrden.set(`${r.visitaId}|${r.orden}`, {
       visitaId: r.visitaId,
@@ -205,6 +280,7 @@ GROUP BY ie.VisitaID, ie.Orden, ie.EstacionCocinaID, p.Nombre, ie.Observacion`)
       resaltado: !!r.resaltado,
       ocupacionPorEstacion: {}
     })
+    tipoEnvioPorOrden[`${r.visitaId}|${r.orden}`] = r.tipoEnvio ?? null
   }
   for (const fila of filas) {
     const ordenCarga = porOrden.get(`${fila.visitaId}|${fila.orden}`)
@@ -215,14 +291,31 @@ GROUP BY ie.VisitaID, ie.Orden, ie.EstacionCocinaID, p.Nombre, ie.Observacion`)
   }
 
   const { cortes, enEspera } = derivarCortes([...porOrden.values()], estaciones)
-  return { estaciones, cortes, enEspera, filas, productos }
+  return {
+    estaciones,
+    cortes,
+    enEspera,
+    filas,
+    productos,
+    combos,
+    comboHijos,
+    tipoEnvioPorOrden
+  }
 }
 
 export async function getCargaEstacionDb(
   estacionId: number
 ): Promise<CargaEstacionResponse> {
-  const { estaciones, cortes, enEspera, filas, productos } =
-    await getCortesCocina()
+  const {
+    estaciones,
+    cortes,
+    enEspera,
+    filas,
+    productos,
+    combos,
+    comboHijos,
+    tipoEnvioPorOrden
+  } = await getCortesCocina()
   const estacion = estaciones.find((e) => e.estacionCocinaId === estacionId)
   if (!estacion) return { estacion: null, cortes: [], enEspera: null }
 
@@ -234,6 +327,7 @@ export async function getCargaEstacionDb(
     observacion: string | null
     cantidad: number
     ordenLinea: number // menor DetalleCuentaID: respeta el orden de carga
+    desglose?: { nombre: string; cantidad: number }[] // opcionales del combo
   }
   const acumular = (
     mapa: Map<string, Map<string, ItemAcumulado>>,
@@ -280,31 +374,78 @@ export async function getCargaEstacionDb(
     )
   }
 
+  // Vista armado (MostrarProductos): productos directos + la linea de combo con
+  // su nombre y el desglose de opcionales; el combo NO se resuelve a sus hijos.
+  const armadoPorPedido = new Map<string, Map<string, ItemAcumulado>>()
+  if (estacion.mostrarProductos) {
+    for (const p of productos) {
+      if (p.estacionCocinaId !== estacionId || p.esHijoCombo) continue
+      acumular(
+        armadoPorPedido,
+        `${p.visitaId}|${p.orden}`,
+        p.producto,
+        p.observacion ?? null,
+        p.cantidad,
+        p.lineaMin
+      )
+    }
+    const hijosPorLinea = new Map<number, ComboHijoFilaDb[]>()
+    for (const h of comboHijos) {
+      const lista = hijosPorLinea.get(h.detalleCuentaId) ?? []
+      lista.push(h)
+      hijosPorLinea.set(h.detalleCuentaId, lista)
+    }
+    for (const c of combos) {
+      if (c.estacionCocinaId !== estacionId) continue
+      const clave = `${c.visitaId}|${c.orden}`
+      let porItem = armadoPorPedido.get(clave)
+      if (!porItem) {
+        porItem = new Map()
+        armadoPorPedido.set(clave, porItem)
+      }
+      // Una entrada por linea de combo: dos combos iguales con opcionales
+      // distintos no deben fundirse.
+      porItem.set(`combo|${c.detalleCuentaId}`, {
+        nombre: c.combo,
+        observacion: c.observacion ?? null,
+        cantidad: c.cantidad,
+        ordenLinea: c.detalleCuentaId,
+        desglose: (hijosPorLinea.get(c.detalleCuentaId) ?? [])
+          .sort((a, b) => a.ordenRow - b.ordenRow)
+          .map(({ hijo, cantidad }) => ({ nombre: hijo, cantidad }))
+      })
+    }
+  }
+
   const aGrupoEstacion = (grupo: Corte): CorteEstacion | null => {
     const pedidos: PedidoEstacion[] = []
     const totales = new Map<string, number>()
     for (const o of grupo.ordenes) {
       const clave = `${o.visitaId}|${o.orden}`
       // Las cards de pedido siempre muestran productos (el cocinero piensa en
-      // la hamburguesa que sale); fallback a componentes por si un producto con
-      // carga no aparece en la vista por producto.
-      const fuentePedido =
-        productosPorPedido.get(clave) ?? componentesPorPedido.get(clave)
+      // la hamburguesa que sale). En estaciones MostrarProductos el combo se
+      // muestra como combo con desglose; en las demas se resuelve a sus hijos.
+      // Fallback a componentes por si un producto con carga no aparece.
+      const fuentePedido = estacion.mostrarProductos
+        ? armadoPorPedido.get(clave) ?? componentesPorPedido.get(clave)
+        : productosPorPedido.get(clave) ?? componentesPorPedido.get(clave)
       // El header agrega la carga real de la estacion: componentes en las
-      // normales, productos en las MostrarProductos.
+      // normales, la vista armado en las MostrarProductos.
       const fuenteHeader = estacion.mostrarProductos
-        ? productosPorPedido.get(clave) ?? componentesPorPedido.get(clave)
+        ? fuentePedido
         : componentesPorPedido.get(clave)
       if (!fuentePedido || fuentePedido.size === 0) continue
       pedidos.push({
         visitaId: o.visitaId,
         orden: o.orden,
+        tipoEnvio: tipoEnvioPorOrden[clave] ?? null,
         items: [...fuentePedido.values()]
           .sort((a, b) => a.ordenLinea - b.ordenLinea)
-          .map(({ nombre, cantidad, observacion }) => ({
+          .map(({ nombre, cantidad, observacion, desglose }) => ({
             nombre,
             cantidad,
-            observacion
+            observacion,
+            desglose
           }))
       })
       // El agregado del header suma por nombre, sin abrir por observacion.

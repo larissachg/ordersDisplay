@@ -41,12 +41,14 @@ export interface ItemCorteEstacion {
   nombre: string
   cantidad: number
   observacion?: string | null // solo en items de pedido; el agregado no la lleva
+  desglose?: { nombre: string; cantidad: number }[] // opcionales del combo (vista armado)
 }
 
 // Un pedido dentro de la seccion de un corte, con lo relevante a la estacion.
 export interface PedidoEstacion {
   visitaId: number
   orden: number
+  tipoEnvio: string | null // colorea el numero de pedido igual que la principal
   items: ItemCorteEstacion[]
 }
 

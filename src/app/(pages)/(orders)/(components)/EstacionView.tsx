@@ -5,6 +5,7 @@ import TimerComponent from '@/components/TimerComponent'
 import useSound from 'use-sound'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CargaEstacionResponse, CorteEstacion } from '@/interfaces/Cocina'
+import { getColorForTipoEnvio } from '@/utils/tipoEnvioColor'
 import Link from 'next/link'
 
 const themeColors = {
@@ -63,13 +64,21 @@ const SeccionGrupo = ({
           style={{ borderColor: color }}
         >
           <CardContent className='flex items-start gap-3 p-3'>
-            <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2c3236] text-2xl font-bold text-white'>
+            <div
+              className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white'
+              style={{
+                backgroundColor: getColorForTipoEnvio(
+                  pedido.tipoEnvio,
+                  '#2c3236'
+                )
+              }}
+            >
               {pedido.orden}
             </div>
             <ul className='min-w-0 flex-1'>
-              {pedido.items.map((item) => (
+              {pedido.items.map((item, index) => (
                 <li
-                  key={`${item.nombre}|${item.observacion ?? ''}`}
+                  key={`${index}-${item.nombre}`}
                   className='flex items-start gap-2.5 py-1'
                 >
                   <span
@@ -82,6 +91,14 @@ const SeccionGrupo = ({
                     <span className='text-2xl font-semibold capitalize leading-7'>
                       {item.nombre}
                     </span>
+                    {item.desglose?.map((hijo) => (
+                      <p
+                        key={hijo.nombre}
+                        className='pl-2 text-xl font-semibold leading-6'
+                      >
+                        +{hijo.cantidad} {hijo.nombre}
+                      </p>
+                    ))}
                     {item.observacion && (
                       <p className='text-xl font-semibold leading-6'>
                         - {item.observacion}
